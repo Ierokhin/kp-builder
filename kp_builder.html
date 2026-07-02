@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>KP Builder</title>
+<style>
+  :root{
+    --bg:#EDEBE3; --card:#FFFFFF; --sidebar:#F3F1EA; --border:#E3E1D9; --border-strong:#C9C6B8;
+    --text:#242320; --text-2:#6B6A62; --text-3:#9B998E;
+    --teal:#0F6E56; --teal-bg:#E1F5EE; --teal-line:#5DCAA5;
+    --amber:#854F0B; --amber-bg:#FAEEDA;
+    --red:#791F1F; --red-bg:#FCEBEB;
+    --green:#27500A; --green-bg:#EAF3DE;
+    --purple:#3C3489; --purple-bg:#EEEDFE;
+    font-family: -apple-system, "Inter", "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);padding:28px 16px 80px;}
+  .shell{max-width:1000px;margin:0 auto;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--card);}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--border);}
+  .brand{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;}
+  .brand-mark{width:26px;height:26px;border-radius:7px;background:var(--text);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;}
+  .avatar{width:26px;height:26px;border-radius:50%;background:var(--teal-bg);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+  .body-row{display:flex;min-height:520px;}
+  .sidebar{width:200px;flex-shrink:0;border-right:1px solid var(--border);background:var(--sidebar);padding:16px 10px;}
+  .sidebar-group{font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin:14px 8px 6px;}
+  .sidebar-group:first-child{margin-top:0;}
+  .proj{display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;}
+  .proj.active{background:var(--card);border:1px solid var(--border);}
+  .proj-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .proj-name{font-size:12.5px;font-weight:500;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .proj-status{font-size:11px;color:var(--text-3);margin:0;}
+  .proj.dim{opacity:.55;}
+  .newbtn{width:100%;justify-content:center;display:flex;align-items:center;gap:6px;margin-bottom:14px;font-size:12px;
+    padding:8px;border:1px solid var(--border-strong);border-radius:8px;background:#fff;color:var(--text-2);}
+  .main{flex:1;min-width:0;padding:20px 24px;display:flex;flex-direction:column;}
+  .client-name{font-size:16px;font-weight:600;margin:0;}
+  .client-meta{font-size:12px;color:var(--text-3);margin:2px 0 18px;}
+  .stepper{display:flex;align-items:center;margin-bottom:20px;flex-wrap:wrap;row-gap:8px;}
+  .step{display:flex;align-items:center;gap:6px;}
+  .step-dot{width:20px;height:20px;border-radius:50%;border:1px solid var(--border-strong);display:flex;align-items:center;
+    justify-content:center;font-size:11px;color:var(--text-3);flex-shrink:0;}
+  .step.active .step-dot{background:var(--text);border-color:var(--text);color:#fff;}
+  .step.done .step-dot{background:var(--teal);border-color:var(--teal);color:#fff;}
+  .step-label{font-size:12px;color:var(--text-3);}
+  .step.active .step-label{color:var(--text);font-weight:600;}
+  .step.done .step-label{color:var(--text-2);}
+  .step-line{width:26px;height:1px;background:var(--border-strong);margin:0 8px;}
+  .view{display:none;}
+  .view.shown{display:block;}
+  label{display:block;font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:8px;}
+  textarea{width:100%;border:1px solid var(--border-strong);border-radius:8px;padding:12px 14px;font-size:14px;
+    font-family:inherit;line-height:1.6;color:var(--text);resize:vertical;background:#FCFCFA;}
+  textarea:focus{outline:2px solid var(--teal-line);outline-offset:1px;}
+  .row{display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;}
+  button{cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px;padding:9px 16px;
+    border:1px solid var(--border-strong);background:#fff;color:var(--text);transition:background .15s;}
+  button:hover{background:#F1F0EA;}
+  button.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
+  button.primary:hover{background:#0C5C48;}
+  button.ghost{background:transparent;border:none;color:var(--text-2);text-decoration:underline;padding:0;font-weight:500;}
+  button.link-back{background:none;border:none;color:var(--text-3);padding:0;font-size:12px;text-decoration:underline;margin-bottom:12px;}
+  button:disabled{opacity:.45;cursor:default;}
+  #status{font-size:13px;color:var(--text-2);}
+  #status.err{color:var(--red);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-weight:600;color:var(--text-2);font-size:11px;text-transform:uppercase;
+    letter-spacing:.02em;padding:0 8px 8px;border-bottom:1px solid var(--border);}
+  td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .deliv-block{font-size:11px;color:var(--text-3);display:block;}
+  .deliv-name{font-weight:500;}
+  .qty-input{width:44px;border:1px solid var(--border-strong);border-radius:6px;padding:5px 6px;font-size:13px;font-family:inherit;}
+  .cost-input{width:70px;border:1px solid var(--border-strong);border-radius:6px;padding:5px 6px;font-size:13px;font-family:inherit;}
+  .txt-input{width:100%;border:1px solid var(--border-strong);border-radius:6px;padding:5px 6px;font-size:12.5px;font-family:inherit;margin-bottom:4px;}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .badge.high{background:var(--green-bg);color:var(--green);}
+  .badge.medium{background:var(--amber-bg);color:var(--amber);}
+  .badge.low{background:var(--red-bg);color:var(--red);}
+  .badge.new{background:var(--purple-bg);color:var(--purple);}
+  .reason{color:var(--text-2);font-size:12px;}
+  .note{font-size:12px;color:var(--text-3);line-height:1.6;margin:16px 0 0;padding-top:14px;border-top:1px dashed var(--border);}
+  .empty{font-size:13px;color:var(--text-3);padding:20px 0;text-align:center;}
+  .spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--border-strong);border-top-color:var(--teal);
+    border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .payload-box{background:#1E1D1A;color:#E7E5DC;border-radius:8px;padding:14px 16px;font-family:ui-monospace,Menlo,monospace;
+    font-size:11.5px;line-height:1.6;overflow-x:auto;white-space:pre;max-height:340px;overflow-y:auto;}
+  .metrics{display:flex;gap:12px;margin-top:18px;}
+  .metric{background:var(--sidebar);border-radius:8px;padding:10px 14px;}
+  .metric p:first-child{font-size:11px;color:var(--text-3);margin:0 0 2px;}
+  .metric p:last-child{font-size:16px;font-weight:600;margin:0;}
+  .section-title{font-size:13px;font-weight:600;margin:22px 0 10px;display:flex;align-items:center;gap:8px;}
+  .pct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px;}
+  .pct-cell{display:flex;align-items:center;gap:4px;}
+  .pct-cell span{font-size:10px;color:var(--text-3);width:62px;flex-shrink:0;}
+  .pct-cell input{width:38px;border:1px solid var(--border-strong);border-radius:5px;padding:3px 4px;font-size:11px;font-family:inherit;}
+  .new-row{background:var(--purple-bg);}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand"><span class="brand-mark">KP</span>KP Builder</div>
+    <div class="avatar">КБ</div>
+  </div>
+
+  <div class="body-row">
+    <div class="sidebar">
+      <button class="newbtn">+ Новый проект</button>
+      <div class="sidebar-group">Активные</div>
+      <div class="proj active">
+        <span class="proj-dot" style="background:#EF9F27;"></span>
+        <div><p class="proj-name">Smallwood Coffee</p><p class="proj-status">Проверка ИИ</p></div>
+      </div>
+      <div class="proj dim">
+        <span class="proj-dot" style="background:var(--border-strong);"></span>
+        <div><p class="proj-name">FeynLab</p><p class="proj-status">Ждёт транскрипт</p></div>
+      </div>
+      <div class="sidebar-group">Готово</div>
+      <div class="proj dim">
+        <span class="proj-dot" style="background:#639922;"></span>
+        <div><p class="proj-name">Jasmine Snow</p><p class="proj-status">КП готово</p></div>
+      </div>
+      <div class="proj dim">
+        <span class="proj-dot" style="background:var(--border-strong);"></span>
+        <div><p class="proj-name">Plan D</p><p class="proj-status">Отправлено</p></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <p class="client-name">Smallwood Coffee</p>
+      <p class="client-meta">Звонок 28 июня &middot; Борис (КД)</p>
+
+      <div class="stepper">
+        <div class="step active" id="step1"><span class="step-dot">1</span><span class="step-label">Транскрипт</span></div>
+        <div class="step-line"></div>
+        <div class="step" id="step2"><span class="step-dot">2</span><span class="step-label">Проверка ИИ</span></div>
+        <div class="step-line"></div>
+        <div class="step" id="step3"><span class="step-dot">3</span><span class="step-label">Калькулятор</span></div>
+        <div class="step-line"></div>
+        <div class="step" id="step4"><span class="step-dot">4</span><span class="step-label">КП</span></div>
+      </div>
+
+      <div class="view shown" id="viewInput">
+        <label for="appsUrl">Apps Script URL (веб-приложение из Code.gs)</label>
+        <input class="txt-input" id="appsUrl" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:14px;">
+        <label for="transcript">Транскрипт звонка</label>
+        <textarea id="transcript" rows="9" placeholder="Вставьте текст расшифровки звонка с клиентом..."></textarea>
+        <div class="row">
+          <button class="primary" id="extractBtn" onclick="extract()">Извлечь услуги</button>
+          <button class="ghost" onclick="loadSample()">Вставить пример транскрипта</button>
+          <span id="status"></span>
+        </div>
+      </div>
+
+      <div class="view" id="viewReview">
+        <button class="link-back" onclick="goStep(1)">&larr; изменить транскрипт</button>
+
+        <div class="section-title"><i class="ti ti-check" aria-hidden="true"></i>Совпадения с каталогом</div>
+        <table>
+          <thead><tr><th></th><th>Услуга</th><th>Кол-во</th><th>Уверенность</th><th>Почему</th></tr></thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+
+        <div id="newItemsSection" style="display:none;">
+          <div class="section-title"><i class="ti ti-sparkles" aria-hidden="true"></i>Новые позиции — вне каталога, оценено ИИ</div>
+          <table>
+            <thead><tr><th></th><th>Блок / Задача / Услуга</th><th>Кол-во</th><th>Цена €</th><th>Раскладка по ролям, %</th></tr></thead>
+            <tbody id="newItemsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="row">
+          <button class="primary" onclick="prepareSync()">Подготовить для калькулятора</button>
+          <span id="reviewStatus" style="font-size:12px;color:var(--text-3);"></span>
+        </div>
+      </div>
+
+      <div class="view" id="viewSync">
+        <button class="link-back" onclick="goStep(2)">&larr; вернуться к проверке</button>
+        <label>Payload для Apps Script</label>
+        <div class="payload-box" id="payloadBox"></div>
+        <div class="row">
+          <button onclick="copyPayload()">Скопировать JSON</button>
+          <button class="primary" onclick="writeNewRows()">Записать новые строки в таблицу</button>
+          <span id="writeStatus" style="font-size:12px;color:var(--text-3);"></span>
+        </div>
+        <div class="row">
+          <button disabled title="Доступно после подключения Apps Script">Сгенерировать КП</button>
+        </div>
+        <p class="note"><code>existing_matches</code> — id и qty для уже существующих строк каталога (только чтение цены, без записи в таблицу). <code>new_rows</code> —
+          готовые строки для добавления вниз вашей таблицы «Таблица услуг» — ключи названы по буквам столбцов
+          (A/B/C — блок/задача/услуга, E — кол-во, I — цена EUR, J–Q — раскладка по ролям). Столбцы F, G, H, R и второй/третий
+          блоки считает формула вашей таблицы — мы их не трогаем. Запись в Google Sheets и генерация Slides в этом
+          браузерном прототипе ещё не подключены.</p>
+        <div class="metrics">
+          <div class="metric"><p>Цена клиенту</p><p>&mdash; после синхронизации</p></div>
+          <div class="metric"><p>Себестоимость подрядчикам</p><p>&mdash; после синхронизации</p></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const CATALOG = [{"id": 1, "block": "BRANDING EXECUTION", "task": "Logo", "deliverable": "New logo development (based on the direction)"}, {"id": 2, "block": "BRANDING EXECUTION", "task": "Logo", "deliverable": "Logo rebranding options"}, {"id": 3, "block": "BRANDING EXECUTION", "task": "Logo", "deliverable": "Logo font improvement"}, {"id": 4, "block": "BRANDING EXECUTION", "task": "Logo", "deliverable": "Logo icon improvement"}, {"id": 5, "block": "BRANDING EXECUTION", "task": "Logo", "deliverable": "Secondary/Alternate logo versions (for occasional usage)"}, {"id": 6, "block": "BRANDING EXECUTION", "task": "Logo", "deliverable": "Product line icons (3-5) based on the logo icon"}, {"id": 7, "block": "BRANDING EXECUTION", "task": "Font", "deliverable": "Primary and secondary fonts + proportions"}, {"id": 8, "block": "BRANDING EXECUTION", "task": "Color palette", "deliverable": "Primary and secondary colour palette"}, {"id": 9, "block": "BRANDING EXECUTION", "task": "Color palette", "deliverable": "Color coding for different product lines"}, {"id": 10, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Patterns (2-3 options)"}, {"id": 11, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Set of 5 icons (based on the exsisting set)"}, {"id": 12, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Set of 5 icons (created from scratch)"}, {"id": 13, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Principles of Graphic Design (Images with combinations of brand assets"}, {"id": 14, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "1 Simple illustration / render (example)"}, {"id": 15, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "1 Medium illustration / render (example)"}, {"id": 16, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "1 Complex illustration / render (example)"}, {"id": 17, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Logo basic animation (example)"}, {"id": 18, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Logo advanced animation (example)"}, {"id": 19, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Photo/Video content mood board / instructions"}, {"id": 20, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Interactive Generated Art (example)"}, {"id": 21, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Mascot simple"}, {"id": 22, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Mascot medium"}, {"id": 23, "block": "BRANDING EXECUTION", "task": "Brand Assets", "deliverable": "Mascot complex"}, {"id": 24, "block": "BRANDING EXECUTION", "task": "Brand Mapping", "deliverable": "Identifying and prioritizing every touchpoint the brand needs to live across."}, {"id": 25, "block": "BRANDED MATERIALS", "task": "Copywriting", "deliverable": "Naming (max 2 presentations) 7 names each, +last (3rd) presentation with all options"}, {"id": 26, "block": "BRANDED MATERIALS", "task": "Copywriting", "deliverable": "The tone of voice - Example / Instructions"}, {"id": 27, "block": "BRANDED MATERIALS", "task": "Copywriting", "deliverable": "Manifest statement (under 500 characters)"}, {"id": 28, "block": "BRANDED MATERIALS", "task": "Copywriting", "deliverable": "Series of 6 brand phrases to emphasize various benefits"}, {"id": 29, "block": "BRANDED MATERIALS", "task": "Copywriting", "deliverable": "Naming principles ideas (3 directions)"}, {"id": 30, "block": "BRANDED MATERIALS", "task": "Copywriting", "deliverable": "Hashtags principles Instructions"}, {"id": 31, "block": "BRANDED MATERIALS", "task": "Copywriting", "deliverable": "Full copywriting presentation"}, {"id": 32, "block": "BRANDED MATERIALS", "task": "Key visuals", "deliverable": "Used in promotion (posters, website, social media) Concept development (2-3 options) Production/Post-production Layout design"}, {"id": 33, "block": "BRANDED MATERIALS", "task": "Brand Identity Guidelines", "deliverable": "Includes brand identity principles and all confirmed items. (Should be developed using a template)"}, {"id": 34, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Personal business card"}, {"id": 35, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Corporate business card"}, {"id": 36, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "E-Mail Signature"}, {"id": 37, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Email Newsletter Template"}, {"id": 38, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Letterhead"}, {"id": 39, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Envelope"}, {"id": 40, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Flyer"}, {"id": 41, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Brochures"}, {"id": 42, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Folder"}, {"id": 43, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Roll-up"}, {"id": 44, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Flag"}, {"id": 45, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Tri-fold brochure (DL fold)"}, {"id": 46, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "PowerPoint Template"}, {"id": 47, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Vechile design"}, {"id": 48, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Company profile (5 pages)"}, {"id": 49, "block": "BRANDED MATERIALS", "task": "Corporate", "deliverable": "Invoice Template"}, {"id": 50, "block": "BRANDED MATERIALS", "task": "Social Media", "deliverable": "Meta set: Facebook banner (3 options) FB/Instagram avatar (3 options) FB/Instagram story template (3 options) FB/Instagram post template (3 options) Instagram highlights (5 pcs)"}, {"id": 51, "block": "BRANDED MATERIALS", "task": "Social Media", "deliverable": "YouTube set: Channel Logo Channel Banner/Art Video Thumbnails Template Motion Intro & Outro Lower Third Template End Screen Template"}, {"id": 52, "block": "BRANDED MATERIALS", "task": "Website", "deliverable": "Website Blueprint"}, {"id": 53, "block": "BRANDED MATERIALS", "task": "Website", "deliverable": "Digital ads"}, {"id": 54, "block": "BRANDED MATERIALS", "task": "Website", "deliverable": "Discovery (Technician assignment / Estimation)"}, {"id": 55, "block": "BRANDED MATERIALS", "task": "Website", "deliverable": "Ad Banner concept"}, {"id": 56, "block": "BRANDED MATERIALS", "task": "Website", "deliverable": "Gifs, animations for website"}, {"id": 57, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Paper bags (3 sizes)"}, {"id": 58, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Plastic bags (3 sizes)"}, {"id": 59, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Plastic package to go (3 sizes)"}, {"id": 60, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Paper package to go (3 sizes)"}, {"id": 61, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Paper cups for beverages to go (3 sizes)"}, {"id": 62, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Plastic cups for cold drinks (3 sizes)"}, {"id": 63, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Pizza box"}, {"id": 64, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Set of stickers (6 pcs)"}, {"id": 65, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Match-box/matches"}, {"id": 66, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Sugar, pepper, salt sticks"}, {"id": 67, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Bottle for beverages template"}, {"id": 68, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Unique table reservation sign"}, {"id": 69, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Price tag"}, {"id": 70, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Wrapping paper"}, {"id": 71, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Basic Packaging"}, {"id": 72, "block": "BRANDED MATERIALS", "task": "Packaging", "deliverable": "Gift-box"}, {"id": 73, "block": "BRANDED MATERIALS", "task": "Custom Packaging", "deliverable": "Packaging Concept Development (2 phases: 1(Shape+Material) + 2(Content+Design) + Scope+CP)"}, {"id": 74, "block": "BRANDED MATERIALS", "task": "Custom Packaging", "deliverable": "Master Layout Development (Включая 3Д)"}, {"id": 75, "block": "BRANDED MATERIALS", "task": "Custom Packaging", "deliverable": "Poster A1"}, {"id": 76, "block": "BRANDED MATERIALS", "task": "Uniform The look reference is provided by the client", "deliverable": "Uniform (1 set) - top/bottom/accessories"}, {"id": 77, "block": "BRANDED MATERIALS", "task": "Uniform The look reference is provided by the client", "deliverable": "Canvas tote bag"}, {"id": 78, "block": "BRANDED MATERIALS", "task": "Uniform The look reference is provided by the client", "deliverable": "Baseball hat"}, {"id": 79, "block": "BRANDED MATERIALS", "task": "Uniform The look reference is provided by the client", "deliverable": "T-Shirt / Polo-shirt"}, {"id": 80, "block": "BRANDED MATERIALS", "task": "Uniform The look reference is provided by the client", "deliverable": "Labor jacket"}, {"id": 81, "block": "BRANDED MATERIALS", "task": "Uniform The look reference is provided by the client", "deliverable": "Helmet"}, {"id": 82, "block": "BRANDED MATERIALS", "task": "Uniform The look reference is provided by the client", "deliverable": "Badge template"}, {"id": 83, "block": "BRANDED MATERIALS", "task": "Menu", "deliverable": "Interactive / Animated TV Menu (per screen)"}, {"id": 84, "block": "BRANDED MATERIALS", "task": "Menu", "deliverable": "Printed Menu"}, {"id": 85, "block": "BRANDED MATERIALS", "task": "Menu", "deliverable": "QR-code Menu"}, {"id": 86, "block": "BRANDED MATERIALS", "task": "Events", "deliverable": "Ticket"}, {"id": 87, "block": "BRANDED MATERIALS", "task": "Events", "deliverable": "Paper/Plastic/Fabric Bracelet"}, {"id": 88, "block": "BRANDED MATERIALS", "task": "Events", "deliverable": "Unique give-away item ideas (5 pcs)"}, {"id": 89, "block": "BRANDED MATERIALS", "task": "Interior branding", "deliverable": "Branded Wall (Example ASC)"}, {"id": 90, "block": "BRANDED MATERIALS", "task": "Exterior branding In cases, architecture service is not included", "deliverable": "Signage"}, {"id": 91, "block": "BRANDED MATERIALS", "task": "Exterior branding In cases, architecture service is not included", "deliverable": "Sidewalk sign"}, {"id": 92, "block": "BRANDED MATERIALS", "task": "Exterior branding In cases, architecture service is not included", "deliverable": "Opening hours sticker/sign"}, {"id": 93, "block": "BRANDED MATERIALS", "task": "Exterior branding In cases, architecture service is not included", "deliverable": "Unique bike parking area"}];
+const CATALOG_TEXT = "1. BRANDING EXECUTION › Logo — New logo development (based on the direction)\n2. BRANDING EXECUTION › Logo — Logo rebranding options\n3. BRANDING EXECUTION › Logo — Logo font improvement\n4. BRANDING EXECUTION › Logo — Logo icon improvement\n5. BRANDING EXECUTION › Logo — Secondary/Alternate logo versions (for occasional usage)\n6. BRANDING EXECUTION › Logo — Product line icons (3-5) based on the logo icon\n7. BRANDING EXECUTION › Font — Primary and secondary fonts + proportions\n8. BRANDING EXECUTION › Color palette — Primary and secondary colour palette\n9. BRANDING EXECUTION › Color palette — Color coding for different product lines\n10. BRANDING EXECUTION › Brand Assets — Patterns (2-3 options)\n11. BRANDING EXECUTION › Brand Assets — Set of 5 icons (based on the exsisting set)\n12. BRANDING EXECUTION › Brand Assets — Set of 5 icons (created from scratch)\n13. BRANDING EXECUTION › Brand Assets — Principles of Graphic Design (Images with combinations of brand assets\n14. BRANDING EXECUTION › Brand Assets — 1 Simple illustration / render (example)\n15. BRANDING EXECUTION › Brand Assets — 1 Medium illustration / render (example)\n16. BRANDING EXECUTION › Brand Assets — 1 Complex illustration / render (example)\n17. BRANDING EXECUTION › Brand Assets — Logo basic animation (example)\n18. BRANDING EXECUTION › Brand Assets — Logo advanced animation (example)\n19. BRANDING EXECUTION › Brand Assets — Photo/Video content mood board / instructions\n20. BRANDING EXECUTION › Brand Assets — Interactive Generated Art (example)\n21. BRANDING EXECUTION › Brand Assets — Mascot simple\n22. BRANDING EXECUTION › Brand Assets — Mascot medium\n23. BRANDING EXECUTION › Brand Assets — Mascot complex\n24. BRANDING EXECUTION › Brand Mapping — Identifying and prioritizing every touchpoint the brand needs to live across.\n25. BRANDED MATERIALS › Copywriting — Naming (max 2 presentations) 7 names each, +last (3rd) presentation with all options\n26. BRANDED MATERIALS › Copywriting — The tone of voice - Example / Instructions\n27. BRANDED MATERIALS › Copywriting — Manifest statement (under 500 characters)\n28. BRANDED MATERIALS › Copywriting — Series of 6 brand phrases to emphasize various benefits\n29. BRANDED MATERIALS › Copywriting — Naming principles ideas (3 directions)\n30. BRANDED MATERIALS › Copywriting — Hashtags principles Instructions\n31. BRANDED MATERIALS › Copywriting — Full copywriting presentation\n32. BRANDED MATERIALS › Key visuals — Used in promotion (posters, website, social media) Concept development (2-3 options) Production/Post-production Layout design\n33. BRANDED MATERIALS › Brand Identity Guidelines — Includes brand identity principles and all confirmed items. (Should be developed using a template)\n34. BRANDED MATERIALS › Corporate — Personal business card\n35. BRANDED MATERIALS › Corporate — Corporate business card\n36. BRANDED MATERIALS › Corporate — E-Mail Signature\n37. BRANDED MATERIALS › Corporate — Email Newsletter Template\n38. BRANDED MATERIALS › Corporate — Letterhead\n39. BRANDED MATERIALS › Corporate — Envelope\n40. BRANDED MATERIALS › Corporate — Flyer\n41. BRANDED MATERIALS › Corporate — Brochures\n42. BRANDED MATERIALS › Corporate — Folder\n43. BRANDED MATERIALS › Corporate — Roll-up\n44. BRANDED MATERIALS › Corporate — Flag\n45. BRANDED MATERIALS › Corporate — Tri-fold brochure (DL fold)\n46. BRANDED MATERIALS › Corporate — PowerPoint Template\n47. BRANDED MATERIALS › Corporate — Vechile design\n48. BRANDED MATERIALS › Corporate — Company profile (5 pages)\n49. BRANDED MATERIALS › Corporate — Invoice Template\n50. BRANDED MATERIALS › Social Media — Meta set: Facebook banner (3 options) FB/Instagram avatar (3 options) FB/Instagram story template (3 options) FB/Instagram post template (3 options) Instagram highlights (5 pcs)\n51. BRANDED MATERIALS › Social Media — YouTube set: Channel Logo Channel Banner/Art Video Thumbnails Template Motion Intro & Outro Lower Third Template End Screen Template\n52. BRANDED MATERIALS › Website — Website Blueprint\n53. BRANDED MATERIALS › Website — Digital ads\n54. BRANDED MATERIALS › Website — Discovery (Technician assignment / Estimation)\n55. BRANDED MATERIALS › Website — Ad Banner concept\n56. BRANDED MATERIALS › Website — Gifs, animations for website\n57. BRANDED MATERIALS › Packaging — Paper bags (3 sizes)\n58. BRANDED MATERIALS › Packaging — Plastic bags (3 sizes)\n59. BRANDED MATERIALS › Packaging — Plastic package to go (3 sizes)\n60. BRANDED MATERIALS › Packaging — Paper package to go (3 sizes)\n61. BRANDED MATERIALS › Packaging — Paper cups for beverages to go (3 sizes)\n62. BRANDED MATERIALS › Packaging — Plastic cups for cold drinks (3 sizes)\n63. BRANDED MATERIALS › Packaging — Pizza box\n64. BRANDED MATERIALS › Packaging — Set of stickers (6 pcs)\n65. BRANDED MATERIALS › Packaging — Match-box/matches\n66. BRANDED MATERIALS › Packaging — Sugar, pepper, salt sticks\n67. BRANDED MATERIALS › Packaging — Bottle for beverages template\n68. BRANDED MATERIALS › Packaging — Unique table reservation sign\n69. BRANDED MATERIALS › Packaging — Price tag\n70. BRANDED MATERIALS › Packaging — Wrapping paper\n71. BRANDED MATERIALS › Packaging — Basic Packaging\n72. BRANDED MATERIALS › Packaging — Gift-box\n73. BRANDED MATERIALS › Custom Packaging — Packaging Concept Development (2 phases: 1(Shape+Material) + 2(Content+Design) + Scope+CP)\n74. BRANDED MATERIALS › Custom Packaging — Master Layout Development (Включая 3Д)\n75. BRANDED MATERIALS › Custom Packaging — Poster A1\n76. BRANDED MATERIALS › Uniform The look reference is provided by the client — Uniform (1 set) - top/bottom/accessories\n77. BRANDED MATERIALS › Uniform The look reference is provided by the client — Canvas tote bag\n78. BRANDED MATERIALS › Uniform The look reference is provided by the client — Baseball hat\n79. BRANDED MATERIALS › Uniform The look reference is provided by the client — T-Shirt / Polo-shirt\n80. BRANDED MATERIALS › Uniform The look reference is provided by the client — Labor jacket\n81. BRANDED MATERIALS › Uniform The look reference is provided by the client — Helmet\n82. BRANDED MATERIALS › Uniform The look reference is provided by the client — Badge template\n83. BRANDED MATERIALS › Menu — Interactive / Animated TV Menu (per screen)\n84. BRANDED MATERIALS › Menu — Printed Menu\n85. BRANDED MATERIALS › Menu — QR-code Menu\n86. BRANDED MATERIALS › Events — Ticket\n87. BRANDED MATERIALS › Events — Paper/Plastic/Fabric Bracelet\n88. BRANDED MATERIALS › Events — Unique give-away item ideas (5 pcs)\n89. BRANDED MATERIALS › Interior branding — Branded Wall (Example ASC)\n90. BRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Signage\n91. BRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Sidewalk sign\n92. BRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Opening hours sticker/sign\n93. BRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Unique bike parking area";
+const PRICED_TEXT = "BRANDING EXECUTION › Logo — New logo development (based on the direction) | €1590 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Logo — Logo rebranding options | €800 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Logo — Logo font improvement | €990 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Logo — Logo icon improvement | €740 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Logo — Secondary/Alternate logo versions (for occasional usage) | €370 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Logo — Product line icons (3-5) based on the logo icon | €500 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Font — Primary and secondary fonts + proportions | €370 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Color palette — Primary and secondary colour palette | €370 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Color palette — Color coding for different product lines | €370 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Brand Assets — Patterns (2-3 options) | €500 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Brand Assets — Set of 5 icons (based on the exsisting set) | €250 | 7/30/55/3/0/0/0/0\nBRANDING EXECUTION › Brand Assets — Set of 5 icons (created from scratch) | €490 | 2/30/60/3/0/0/0/0\nBRANDING EXECUTION › Brand Assets — Principles of Graphic Design (Images with combinations of brand assets | €490 | 2/30/60/3/0/0/0/0\nBRANDING EXECUTION › Brand Assets — 1 Simple illustration / render (example) | €810 | 2/20/0/3/70/0/0/0\nBRANDING EXECUTION › Brand Assets — 1 Medium illustration / render (example) | €810 | 2/20/0/3/70/0/0/0\nBRANDING EXECUTION › Brand Assets — 1 Complex illustration / render (example) | €1510 | 2/20/0/3/70/0/0/0\nBRANDING EXECUTION › Brand Assets — Logo basic animation (example) | €790 | 2/20/0/3/0/70/0/0\nBRANDING EXECUTION › Brand Assets — Logo advanced animation (example) | €1560 | 2/20/0/3/0/70/0/0\nBRANDING EXECUTION › Brand Assets — Photo/Video content mood board / instructions | €150 | 7/60/13/15/0/0/0/0\nBRANDING EXECUTION › Brand Assets — Interactive Generated Art (example) | €2520 | 10/30/0/10/0/0/0/45\nBRANDING EXECUTION › Brand Assets — Mascot simple | €520 | 2/25/0/3/65/0/0/0\nBRANDING EXECUTION › Brand Assets — Mascot medium | €1040 | 2/25/0/3/65/0/0/0\nBRANDING EXECUTION › Brand Assets — Mascot complex | €1560 | 2/25/0/3/65/0/0/0\nBRANDED MATERIALS › Copywriting — Naming (max 2 presentations) 7 names each, +last (3rd) presentation with all options | €2700 | 15/0/10/70/0/0/0/0\nBRANDED MATERIALS › Copywriting — The tone of voice - Example / Instructions | €240 | 10/5/10/70/0/0/0/0\nBRANDED MATERIALS › Copywriting — Manifest statement (under 500 characters) | €580 | 10/5/10/70/0/0/0/0\nBRANDED MATERIALS › Copywriting — Series of 6 brand phrases to emphasize various benefits | €240 | 10/5/10/70/0/0/0/0\nBRANDED MATERIALS › Copywriting — Naming principles ideas (3 directions) | €360 | 10/5/10/70/0/0/0/0\nBRANDED MATERIALS › Copywriting — Hashtags principles Instructions | €240 | 10/5/10/70/0/0/0/0\nBRANDED MATERIALS › Copywriting — Full copywriting presentation | €1410 | 15/0/10/70/0/0/0/0\nBRANDED MATERIALS › Key visuals — Used in promotion (posters, website, social media) Concept development (2-3 options) Production/Post-production Layout design | €1160 | 5/15/45/30/0/0/0/0\nBRANDED MATERIALS › Brand Identity Guidelines — Includes brand identity principles and all confirmed items. (Should be developed using a template) | €970 | 7/23/50/15/0/0/0/0\nBRANDED MATERIALS › Corporate — Personal business card | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Corporate business card | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — E-Mail Signature | €470 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Email Newsletter Template | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Letterhead | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Envelope | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Flyer | €470 | 2/20/60/13/0/0/0/0\nBRANDED MATERIALS › Corporate — Brochures | €700 | 2/20/60/13/0/0/0/0\nBRANDED MATERIALS › Corporate — Folder | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Roll-up | €580 | 2/20/48/25/0/0/0/0\nBRANDED MATERIALS › Corporate — Flag | €350 | 2/15/75/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Tri-fold brochure (DL fold) | €710 | 2/25/43/25/0/0/0/0\nBRANDED MATERIALS › Corporate — PowerPoint Template | €930 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Vechile design | €700 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Company profile (5 pages) | €940 | 5/20/67/3/0/0/0/0\nBRANDED MATERIALS › Corporate — Invoice Template | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Social Media — Meta set: Facebook banner (3 options) FB/Instagram avatar (3 options) FB/Instagram story template (3 options) FB/Instagram post template (3 options) Instagram highlights (5 pcs) | €590 | 5/20/50/20/0/0/0/0\nBRANDED MATERIALS › Social Media — YouTube set: Channel Logo Channel Banner/Art Video Thumbnails Template Motion Intro & Outro Lower Third Template End Screen Template | €3520 | 5/20/60/10/0/0/0/0\nBRANDED MATERIALS › Website — Website Blueprint | €3250 | 7/23/50/15/0/0/0/0\nBRANDED MATERIALS › Website — Digital ads | €580 | 2/20/60/13/0/0/0/0\nBRANDED MATERIALS › Website — Discovery (Technician assignment / Estimation) | €2520 | 15/20/45/15/0/0/0/0\nBRANDED MATERIALS › Website — Ad Banner concept | €370 | 7/23/50/15/0/0/0/0\nBRANDED MATERIALS › Website — Gifs, animations for website | €0 | 0/0/0/0/0/0/0/0\nBRANDED MATERIALS › Packaging — Paper bags (3 sizes) | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Plastic bags (3 sizes) | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Plastic package to go (3 sizes) | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Paper package to go (3 sizes) | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Paper cups for beverages to go (3 sizes) | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Plastic cups for cold drinks (3 sizes) | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Pizza box | €470 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Set of stickers (6 pcs) | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Match-box/matches | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Sugar, pepper, salt sticks | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Bottle for beverages template | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Unique table reservation sign | €730 | 2/30/33/30/0/0/0/0\nBRANDED MATERIALS › Packaging — Price tag | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Wrapping paper | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Packaging — Basic Packaging | €220 | 2/15/33/20/0/0/25/0\nBRANDED MATERIALS › Packaging — Gift-box | €470 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Custom Packaging — Packaging Concept Development (2 phases: 1(Shape+Material) + 2(Content+Design) + Scope+CP) | €1210 | 7/23/60/10/0/0/0/0\nBRANDED MATERIALS › Custom Packaging — Master Layout Development (Включая 3Д) | €890 | 5/15/50/10/0/0/20/0\nBRANDED MATERIALS › Custom Packaging — Poster A1 | €440 | 2/15/60/10/0/0/13/0\nBRANDED MATERIALS › Uniform The look reference is provided by the client — Uniform (1 set) - top/bottom/accessories | €470 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Uniform The look reference is provided by the client — Canvas tote bag | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Uniform The look reference is provided by the client — Baseball hat | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Uniform The look reference is provided by the client — T-Shirt / Polo-shirt | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Uniform The look reference is provided by the client — Labor jacket | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Uniform The look reference is provided by the client — Helmet | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Uniform The look reference is provided by the client — Badge template | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Menu — Interactive / Animated TV Menu (per screen) | €930 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Menu — Printed Menu | €960 | 2/30/48/15/0/0/0/0\nBRANDED MATERIALS › Menu — QR-code Menu | €960 | 2/30/48/15/0/0/0/0\nBRANDED MATERIALS › Events — Ticket | €360 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Events — Paper/Plastic/Fabric Bracelet | €240 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Events — Unique give-away item ideas (5 pcs) | €730 | 2/30/48/15/0/0/0/0\nBRANDED MATERIALS › Interior branding — Branded Wall (Example ASC) | €2090 | 9/10/15/10/17/0/17/17\nBRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Signage | €1160 | 2/20/70/3/0/0/0/0\nBRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Sidewalk sign | €250 | 2/30/60/3/0/0/0/0\nBRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Opening hours sticker/sign | €250 | 2/30/43/20/0/0/0/0\nBRANDED MATERIALS › Exterior branding In cases, architecture service is not included — Unique bike parking area | €730 | 2/30/43/20/0/0/0/0";
+const SAMPLE_TRANSCRIPT = "Клиент — небольшая сеть кофеен \"Smallwood\", три точки, хотят открыть четвёртую. Текущий логотип делали пять лет назад на коленке, просят полный редизайн логотипа и, если получится, альтернативную версию для мерча. Цветовую палитру тоже хотят обновить — сейчас нет единого фирменного цвета. Из ассетов — просили набор из 5 иконок для меню (типа кофе, десерт, веган, безлактозный). Обязательно нужен брендбук (guidelines), чтобы дизайнеры на местах не путались. Для соцсетей — попросили комплект шаблонов для Instagram: аватар, сторис, посты. Упаковка — стаканы навынос, три размера, и бумажные пакеты. Визитки тоже нужны, обычные корпоративные. Сайт делать не готовы, бюджет только на брендинг. Ещё отдельно спросили — можно ли сделать короткую анимацию логотипа для заставки видео на YouTube, такого раньше не делали, и AR-фильтр для Instagram, чтобы гости кофейни могли примерить маскота.";
+const ROLE_KEYS = ['CD','AD','Designer','Copywriter','Illustrator','Motion','3D','Other'];
+let lastData = {matches:[], new_items:[]};
+
+function loadSample(){
+  document.getElementById('transcript').value = SAMPLE_TRANSCRIPT;
+}
+
+function goStep(n){
+  ['viewInput','viewReview','viewSync'].forEach(id => document.getElementById(id).classList.remove('shown'));
+  if(n===1) document.getElementById('viewInput').classList.add('shown');
+  if(n===2) document.getElementById('viewReview').classList.add('shown');
+  if(n===3) document.getElementById('viewSync').classList.add('shown');
+  for(let i=1;i<=4;i++){
+    const el = document.getElementById('step'+i);
+    el.classList.remove('active','done');
+    if(i < n) el.classList.add('done');
+    else if(i === n) el.classList.add('active');
+  }
+}
+
+function systemPrompt(){
+  return "\u0422\u044b \u043f\u043e\u043c\u043e\u0449\u043d\u0438\u043a \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440\u0430 \u0431\u0440\u0435\u043d\u0434\u0438\u043d\u0433\u043e\u0432\u043e\u0433\u043e \u0430\u0433\u0435\u043d\u0442\u0441\u0442\u0432\u0430. \u0415\u0441\u0442\u044c \u0434\u0432\u0430 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445 \u043d\u0438\u0436\u0435. " +
+  "\u041a\u0410\u0422\u0410\u041b\u041e\u0413 (\u0441 id, \u0434\u043b\u044f \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439) \u0438 PRICED (\u0442\u0435 \u0436\u0435 \u043f\u043e\u0437\u0438\u0446\u0438\u0438 \u0441 \u0446\u0435\u043d\u043e\u0439 \u0438 \u0440\u0430\u0441\u043a\u043b\u0430\u0434\u043a\u043e\u0439 \u043f\u043e \u0440\u043e\u043b\u044f\u043c \u0432 % \u043f\u043e\u0440\u044f\u0434\u043a\u0435 CD/AD/Designer/Copywriter/Illustrator/Motion/3D/Other) \u2014 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 PRICED \u043a\u0430\u043a \u0430\u043d\u0430\u043b\u043e\u0433\u0438\u044e \u0434\u043b\u044f \u043e\u0446\u0435\u043d\u043a\u0438 \u043d\u043e\u0432\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439.\n\n" +
+  "\u041f\u0440\u043e\u0447\u0438\u0442\u0430\u0439 \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442 \u0437\u0432\u043e\u043d\u043a\u0430 \u0438 \u0432\u0435\u0440\u043d\u0438 \u0422\u041e\u041b\u042c\u041a\u041e \u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0439 JSON (\u0431\u0435\u0437 markdown) \u0432 \u0444\u043e\u0440\u043c\u0430\u0442\u0435:\n" +
+  "{\"matches\":[{\"id\":number,\"qty\":number,\"confidence\":\"high\"|\"medium\"|\"low\",\"reason\":\"\u0434\u043e 6 \u0441\u043b\u043e\u0432\"}],\n" +
+  "\"new_items\":[{\"block\":\"...\",\"task\":\"...\",\"deliverable\":\"...\",\"qty\":number,\"cost_eur\":number,\"pct\":[CD,AD,Designer,Copywriter,Illustrator,Motion,3D,Other],\"based_on\":\"\u043a\u0440\u0430\u0442\u043a\u043e \u043d\u0430 \u043a\u0430\u043a\u0443\u044e \u043f\u043e\u0437\u0438\u0446\u0438\u044e \u0438\u0437 PRICED \u043e\u043f\u0438\u0440\u0430\u043b\u0441\u044f\",\"reason\":\"\u0434\u043e 6 \u0441\u043b\u043e\u0432\"}]}\n\n" +
+  "\u041f\u0440\u0430\u0432\u0438\u043b\u0430: \u0432 matches \u043f\u043e\u043f\u0430\u0434\u0430\u044e\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0443\u0441\u043b\u0443\u0433\u0438, \u0435\u0441\u0442\u044c \u0432 \u041a\u0410\u0422\u0410\u041b\u041e\u0413\u0415 \u0438 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0442\u0435\u043b\u044c\u043d\u043e \u0437\u0432\u0443\u0447\u0430\u043b\u0438/\u043f\u043e\u0434\u0440\u0430\u0437\u0443\u043c\u0435\u0432\u0430\u043b\u0438\u0441\u044c \u0432 \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442\u0435. " +
+  "\u0412 new_items \u043f\u043e\u043f\u0430\u0434\u0430\u044e\u0442 \u0442\u043e\u043b\u044c\u043a\u043e \u0443\u0441\u043b\u0443\u0433\u0438, \u043a\u043e\u0442\u043e\u0440\u044b\u0445 \u041d\u0415\u0422 \u0432 \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0435 \u0438 \u043a\u043e\u0442\u043e\u0440\u044b\u0435 \u044f\u0432\u043d\u043e \u0437\u0430\u043f\u0440\u043e\u0448\u0435\u043d\u044b. cost_eur \u0438 pct \u043e\u0446\u0435\u043d\u0438\u0432\u0430\u0439 \u043f\u043e \u0430\u043d\u0430\u043b\u043e\u0433\u0438\u0438 \u0441 \u043f\u043e\u0445\u043e\u0436\u0438\u043c\u0438 \u043f\u043e\u0437\u0438\u0446\u0438\u044f\u043c\u0438 \u0438\u0437 PRICED \u2014 " +
+  "\u043d\u0435 \u0432\u044b\u0434\u0443\u043c\u044b\u0432\u0430\u0439 \u0446\u0438\u0444\u0440\u044b \u0441 \u043d\u0443\u043b\u044f. \u0421\u0443\u043c\u043c\u0430 pct \u043d\u0435 \u0434\u043e\u043b\u0436\u043d\u0430 \u043f\u0440\u0435\u0432\u044b\u0448\u0430\u0442\u044c 95 (\u043e\u0441\u0442\u0430\u0442\u043e\u043a \u0434\u043e 100 \u2014 \u0441\u043b\u0443\u0436\u0435\u0431\u043d\u044b\u0439 \u0440\u0435\u0437\u0435\u0440\u0432, \u0441\u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u0444\u043e\u0440\u043c\u0443\u043b\u043e\u0439). " +
+  "\u0415\u0441\u043b\u0438 \u043a\u043b\u0438\u0435\u043d\u0442 \u044f\u0432\u043d\u043e \u043e\u0442\u043a\u0430\u0437\u0430\u043b\u0441\u044f \u043e\u0442 \u0431\u043b\u043e\u043a\u0430 \u0443\u0441\u043b\u0443\u0433 \u2014 \u043d\u0435 \u0432\u043a\u043b\u044e\u0447\u0430\u0439 \u0435\u0433\u043e.\n\n" +
+  "\u041a\u0410\u0422\u0410\u041b\u041e\u0413:\n" + CATALOG_TEXT + "\n\nPRICED (\u0430\u043d\u0430\u043b\u043e\u0433\u0438 \u0434\u043b\u044f \u043d\u043e\u0432\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439):\n" + PRICED_TEXT;
+}
+
+function appsUrl(){
+  return document.getElementById('appsUrl').value.trim();
+}
+
+async function extract(){
+  const text = document.getElementById('transcript').value.trim();
+  const status = document.getElementById('status');
+  const btn = document.getElementById('extractBtn');
+  const url = appsUrl();
+  if(!url){ status.textContent = '\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 Apps Script URL (\u0441\u043c. Code.gs)'; status.className='err'; return; }
+  if(!text){ status.textContent = '\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u0442\u0435\u043a\u0441\u0442 \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442\u0430'; status.className='err'; return; }
+  status.className = '';
+  status.innerHTML = '<span class="spinner"></span>\u0410\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u0443\u044e \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442...';
+  btn.disabled = true;
+  try{
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "chat", system: systemPrompt(), message: text })
+    });
+    const parsed = await response.json();
+    if(parsed.error){ throw new Error(parsed.error + (parsed.details ? (' \u2014 ' + parsed.details) : '')); }
+    lastData = { matches: parsed.matches||[], new_items: parsed.new_items||[] };
+    renderResults(lastData);
+    status.textContent = '';
+    goStep(2);
+  }catch(err){
+    console.error(err);
+    status.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
+    status.className = 'err';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function writeNewRows(){
+  const url = appsUrl();
+  const el = document.getElementById('writeStatus');
+  const payloadText = document.getElementById('payloadBox').textContent;
+  let payload;
+  try{ payload = JSON.parse(payloadText); }catch(e){ el.textContent = '\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u0434\u043b\u044f \u0437\u0430\u043f\u0438\u0441\u0438'; return; }
+  if(!payload.new_rows || !payload.new_rows.length){ el.textContent = '\u041d\u0435\u0442 \u043d\u043e\u0432\u044b\u0445 \u0441\u0442\u0440\u043e\u043a \u0434\u043b\u044f \u0437\u0430\u043f\u0438\u0441\u0438'; return; }
+  el.innerHTML = '<span class="spinner"></span>\u041f\u0438\u0448\u0443 \u0432 \u0442\u0430\u0431\u043b\u0438\u0446\u0443...';
+  try{
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "append_rows", rows: payload.new_rows })
+    });
+    const result = await response.json();
+    if(result.error){ throw new Error(result.error); }
+    el.textContent = '\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0441\u0442\u0440\u043e\u043a: ' + result.rows_added;
+  }catch(err){
+    el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
+  }
+}
+
+function renderResults(data){
+  const body = document.getElementById('resultsBody');
+  body.innerHTML = '';
+  const items = data.matches;
+  if(!items.length){
+    body.innerHTML = '<tr><td colspan="5" class="empty">\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u0441 \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u043e\u043c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</td></tr>';
+  } else {
+    const byId = {};
+    CATALOG.forEach(c => byId[c.id] = c);
+    items.forEach(item => {
+      const c = byId[item.id];
+      if(!c) return;
+      const checked = item.confidence !== 'low' ? 'checked' : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="checkbox" ' + checked + ' data-id="' + item.id + '"></td>' +
+        '<td><span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
+          '<span class="deliv-name">' + c.deliverable + '</span></td>' +
+        '<td><input class="qty-input" type="number" min="1" value="' + (item.qty||1) + '" data-qty="' + item.id + '"></td>' +
+        '<td><span class="badge ' + item.confidence + '">' + item.confidence + '</span></td>' +
+        '<td class="reason">' + (item.reason||'') + '</td>';
+      body.appendChild(tr);
+    });
+  }
+
+  const newSection = document.getElementById('newItemsSection');
+  const newBody = document.getElementById('newItemsBody');
+  newBody.innerHTML = '';
+  if(data.new_items && data.new_items.length){
+    newSection.style.display = 'block';
+    data.new_items.forEach((item, idx) => {
+      const tr = document.createElement('tr');
+      tr.className = 'new-row';
+      const pct = item.pct || [0,0,0,0,0,0,0,0];
+      let pctGrid = '<div class="pct-grid">';
+      ROLE_KEYS.forEach((k,i) => {
+        pctGrid += '<div class="pct-cell"><span>' + k + '</span><input type="number" min="0" max="100" value="' + (pct[i]||0) + '" data-newpct="' + idx + '-' + i + '"></div>';
+      });
+      pctGrid += '</div>';
+      tr.innerHTML =
+        '<td><input type="checkbox" checked data-newid="' + idx + '"></td>' +
+        '<td>' +
+          '<input class="txt-input" value="' + (item.block||'') + '" data-newblock="' + idx + '" placeholder="Block">' +
+          '<input class="txt-input" value="' + (item.task||'') + '" data-newtask="' + idx + '" placeholder="Task">' +
+          '<input class="txt-input" value="' + (item.deliverable||'') + '" data-newdeliv="' + idx + '" placeholder="Deliverable">' +
+          '<span class="reason">\u043e\u0446\u0435\u043d\u0435\u043d\u043e \u043f\u043e: ' + (item.based_on||'') + ' \u2014 ' + (item.reason||'') + '</span>' +
+        '</td>' +
+        '<td><input class="qty-input" type="number" min="1" value="' + (item.qty||1) + '" data-newqty="' + idx + '"></td>' +
+        '<td><input class="cost-input" type="number" min="0" value="' + (item.cost_eur||0) + '" data-newcost="' + idx + '"></td>' +
+        '<td>' + pctGrid + '</td>';
+      newBody.appendChild(tr);
+    });
+  } else {
+    newSection.style.display = 'none';
+  }
+}
+
+function prepareSync(){
+  const existing_matches = [];
+  document.querySelectorAll('#resultsBody tr').forEach(tr => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    if(cb && cb.checked){
+      const id = parseInt(cb.dataset.id);
+      const qtyInput = tr.querySelector('input[data-qty]');
+      existing_matches.push({ id: id, qty: parseInt(qtyInput.value)||1 });
+    }
+  });
+
+  const new_rows = [];
+  document.querySelectorAll('#newItemsBody tr').forEach(tr => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    if(!cb || !cb.checked) return;
+    const idx = cb.dataset.newid;
+    const block = tr.querySelector('[data-newblock="'+idx+'"]').value;
+    const task = tr.querySelector('[data-newtask="'+idx+'"]').value;
+    const deliv = tr.querySelector('[data-newdeliv="'+idx+'"]').value;
+    const qty = parseInt(tr.querySelector('[data-newqty="'+idx+'"]').value)||1;
+    const cost = parseFloat(tr.querySelector('[data-newcost="'+idx+'"]').value)||0;
+    const roleObj = {};
+    ROLE_KEYS.forEach((k,i) => {
+      const el = tr.querySelector('[data-newpct="'+idx+'-'+i+'"]');
+      roleObj[k] = Math.round((parseFloat(el.value)||0))/100;
+    });
+    new_rows.push({
+      A_block: block, B_task: task, C_deliverable: deliv,
+      E_qty: qty, I_cost_eur: cost,
+      J_CD: roleObj.CD, K_AD: roleObj.AD, L_Designer: roleObj.Designer,
+      M_Copywriter: roleObj.Copywriter, N_Illustrator: roleObj.Illustrator,
+      O_Motion: roleObj.Motion, P_3D: roleObj['3D'], Q_Other: roleObj.Other
+    });
+  });
+
+  const payload = { existing_matches: existing_matches, new_rows: new_rows };
+  document.getElementById('payloadBox').textContent = JSON.stringify(payload, null, 2);
+  goStep(3);
+}
+
+function copyPayload(){
+  const text = document.getElementById('payloadBox').textContent;
+  navigator.clipboard.writeText(text);
+}
+</script>
+</body>
+</html>
