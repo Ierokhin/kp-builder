@@ -99,8 +99,17 @@
 </style>
 </head>
 <body>
-<div class="shell">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
+<div id="authGate" style="max-width:360px;margin:120px auto;text-align:center;background:#FFFFFF;
+  border:1px solid #E3E1D9;border-radius:14px;padding:32px 28px;font-family:-apple-system,'Inter',sans-serif;">
+  <p style="font-size:15px;font-weight:600;margin:0 0 4px;color:#242320;">KP Builder</p>
+  <p style="font-size:13px;color:#6B6A62;margin:0 0 20px;">Войдите через рабочий Google-аккаунт</p>
+  <div id="googleSignInBtn" style="display:flex;justify-content:center;"></div>
+  <p id="authError" style="font-size:12px;color:#791F1F;margin:14px 0 0;"></p>
+</div>
+
+<div class="shell" id="appShell" style="display:none;">
   <div class="topbar">
     <div class="brand"><span class="brand-mark">KP</span>KP Builder</div>
     <div class="avatar">КБ</div>
@@ -144,8 +153,6 @@
       </div>
 
       <div class="view shown" id="viewInput">
-        <label for="appsUrl">Apps Script URL (веб-приложение из Code.gs)</label>
-        <input class="txt-input" id="appsUrl" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:14px;">
         <label for="transcript">Транскрипт звонка</label>
         <textarea id="transcript" rows="9" placeholder="Вставьте текст расшифровки звонка с клиентом..."></textarea>
         <div class="row">
@@ -243,25 +250,48 @@ function systemPrompt(){
   "\u041a\u0410\u0422\u0410\u041b\u041e\u0413:\n" + CATALOG_TEXT + "\n\nPRICED (\u0430\u043d\u0430\u043b\u043e\u0433\u0438 \u0434\u043b\u044f \u043d\u043e\u0432\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439):\n" + PRICED_TEXT;
 }
 
+const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/brandon-archibald.com/s/AKfycbwA8MC5AoNdc9CpOYU352JktAWLdMF6Zt7zZjBwMyLXeZEh60x-olnRfr3ePQR1GTkP/exec';
+const GOOGLE_CLIENT_ID = '850773465617-un0i7gd8flo7ma794r2vsb2en3nf4j58.apps.googleusercontent.com';
+let ID_TOKEN = null;
+
+window.addEventListener('load', function(){
+  if(typeof google === 'undefined' || !google.accounts){
+    document.getElementById('authError').textContent = 'Google-скрипт не загрузился. Проверьте интернет и обновите страницу.';
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleCredentialResponse
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('googleSignInBtn'),
+    { theme: 'outline', size: 'large', text: 'signin_with' }
+  );
+});
+
+function handleCredentialResponse(response){
+  ID_TOKEN = response.credential;
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+}
+
 function appsUrl(){
-  return document.getElementById('appsUrl').value.trim();
+  return APPS_SCRIPT_URL;
 }
 
 async function extract(){
   const text = document.getElementById('transcript').value.trim();
   const status = document.getElementById('status');
   const btn = document.getElementById('extractBtn');
-  const url = appsUrl();
-  if(!url){ status.textContent = '\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 Apps Script URL (\u0441\u043c. Code.gs)'; status.className='err'; return; }
   if(!text){ status.textContent = '\u0412\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u0442\u0435\u043a\u0441\u0442 \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442\u0430'; status.className='err'; return; }
   status.className = '';
   status.innerHTML = '<span class="spinner"></span>\u0410\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u0443\u044e \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442...';
   btn.disabled = true;
   try{
-    const response = await fetch(url, {
+    const response = await fetch(appsUrl(), {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "chat", system: systemPrompt(), message: text })
+      body: JSON.stringify({ action: "chat", id_token: ID_TOKEN, system: systemPrompt(), message: text })
     });
     const parsed = await response.json();
     if(parsed.error){ throw new Error(parsed.error + (parsed.details ? (' \u2014 ' + parsed.details) : '')); }
@@ -290,7 +320,7 @@ async function writeNewRows(){
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "append_rows", rows: payload.new_rows })
+      body: JSON.stringify({ action: "append_rows", id_token: ID_TOKEN, rows: payload.new_rows })
     });
     const result = await response.json();
     if(result.error){ throw new Error(result.error); }
