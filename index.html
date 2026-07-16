@@ -117,30 +117,28 @@
 
   <div class="body-row">
     <div class="sidebar">
-      <button class="newbtn">+ Новый проект</button>
-      <div class="sidebar-group">Активные</div>
-      <div class="proj active">
-        <span class="proj-dot" style="background:#EF9F27;"></span>
-        <div><p class="proj-name">Smallwood Coffee</p><p class="proj-status">Проверка ИИ</p></div>
-      </div>
-      <div class="proj dim">
-        <span class="proj-dot" style="background:var(--border-strong);"></span>
-        <div><p class="proj-name">FeynLab</p><p class="proj-status">Ждёт транскрипт</p></div>
-      </div>
-      <div class="sidebar-group">Готово</div>
-      <div class="proj dim">
-        <span class="proj-dot" style="background:#639922;"></span>
-        <div><p class="proj-name">Jasmine Snow</p><p class="proj-status">КП готово</p></div>
-      </div>
-      <div class="proj dim">
-        <span class="proj-dot" style="background:var(--border-strong);"></span>
-        <div><p class="proj-name">Plan D</p><p class="proj-status">Отправлено</p></div>
-      </div>
+      <button class="newbtn" onclick="createNewProject()">+ Новый проект</button>
+      <div id="sidebarContent"></div>
     </div>
 
     <div class="main">
-      <p class="client-name">Smallwood Coffee</p>
-      <p class="client-meta">Звонок 28 июня &middot; Борис (КД)</p>
+      <div id="noProjectState" style="display:none;padding:40px 0;text-align:center;color:var(--text-3);font-size:13px;">
+        Нет ни одного проекта — нажмите «+ Новый проект» слева
+      </div>
+
+      <div id="projectMain" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <p class="client-name" id="clientNameLabel">—</p>
+            <p class="client-meta" id="clientMetaLabel">—</p>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button title="Готово" onclick="setStatus('ready')"><i class="ti ti-check" aria-hidden="true"></i></button>
+            <button title="В архив" onclick="setStatus('archived')"><i class="ti ti-archive" aria-hidden="true"></i></button>
+            <button title="Удалить" onclick="removeProject()" style="color:var(--red);"><i class="ti ti-trash" aria-hidden="true"></i></button>
+          </div>
+        </div>
+
 
       <div class="stepper">
         <div class="step active" id="step1"><span class="step-dot">1</span><span class="step-label">Транскрипт</span></div>
@@ -154,7 +152,7 @@
 
       <div class="view shown" id="viewInput">
         <label for="transcript">Транскрипт звонка</label>
-        <textarea id="transcript" rows="9" placeholder="Вставьте текст расшифровки звонка с клиентом..."></textarea>
+        <textarea id="transcript" rows="9" placeholder="Вставьте текст расшифровки звонка с клиентом..." onblur="saveCurrentState()"></textarea>
         <div class="row">
           <button class="primary" id="extractBtn" onclick="extract()">Извлечь услуги</button>
           <button class="ghost" onclick="loadSample()">Вставить пример транскрипта</button>
@@ -207,6 +205,7 @@
           <div class="metric"><p>Себестоимость подрядчикам</p><p>&mdash; после синхронизации</p></div>
         </div>
       </div>
+      </div>
 
     </div>
   </div>
@@ -224,7 +223,10 @@ function loadSample(){
   document.getElementById('transcript').value = SAMPLE_TRANSCRIPT;
 }
 
+let currentStep = 1;
+
 function goStep(n){
+  currentStep = n;
   ['viewInput','viewReview','viewSync'].forEach(id => document.getElementById(id).classList.remove('shown'));
   if(n===1) document.getElementById('viewInput').classList.add('shown');
   if(n===2) document.getElementById('viewReview').classList.add('shown');
@@ -273,6 +275,7 @@ function handleCredentialResponse(response){
   ID_TOKEN = response.credential;
   document.getElementById('authGate').style.display = 'none';
   document.getElementById('appShell').style.display = 'block';
+  loadProjects();
 }
 
 function appsUrl(){
@@ -299,6 +302,7 @@ async function extract(){
     renderResults(lastData);
     status.textContent = '';
     goStep(2);
+    saveCurrentState();
   }catch(err){
     console.error(err);
     status.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
@@ -425,11 +429,141 @@ function prepareSync(){
   const payload = { existing_matches: existing_matches, new_rows: new_rows };
   document.getElementById('payloadBox').textContent = JSON.stringify(payload, null, 2);
   goStep(3);
+  saveCurrentState({ payload: payload });
 }
 
 function copyPayload(){
   const text = document.getElementById('payloadBox').textContent;
   navigator.clipboard.writeText(text);
+}
+
+// --- Проекты ---
+
+let projects = [];
+let currentProjectId = null;
+
+const STATUS_LABELS = { active: 'Активные', ready: 'Готовые', archived: 'Архивные' };
+const STATUS_ORDER = ['active', 'ready', 'archived'];
+const STEP_LABELS = { 1: 'Ждёт транскрипт', 2: 'Проверка ИИ', 3: 'Калькулятор', 4: 'КП' };
+
+async function callApps(body){
+  const response = await fetch(appsUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ id_token: ID_TOKEN }, body))
+  });
+  return response.json();
+}
+
+async function loadProjects(){
+  try{
+    const result = await callApps({ action: 'list_projects' });
+    if(result.error){ console.error(result.error); return; }
+    projects = result.projects || [];
+    projects.sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+    renderSidebar();
+    if(!currentProjectId && projects.length){
+      selectProject(projects[0].id);
+    } else if(!projects.length){
+      document.getElementById('noProjectState').style.display = 'block';
+      document.getElementById('projectMain').style.display = 'none';
+    }
+  }catch(err){
+    console.error(err);
+  }
+}
+
+function renderSidebar(){
+  const el = document.getElementById('sidebarContent');
+  el.innerHTML = '';
+  STATUS_ORDER.forEach(status => {
+    const group = projects.filter(p => p.status === status);
+    if(!group.length) return;
+    const h = document.createElement('div');
+    h.className = 'sidebar-group';
+    h.textContent = STATUS_LABELS[status];
+    el.appendChild(h);
+    group.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'proj' + (p.id === currentProjectId ? ' active' : ' dim');
+      const dotColor = status === 'active' ? '#EF9F27' : (status === 'ready' ? '#639922' : 'var(--border-strong)');
+      const step = (p.state && p.state.step) || 1;
+      const subLabel = status === 'active' ? (STEP_LABELS[step] || '') : STATUS_LABELS[status].replace(/ы$/, 'о');
+      div.innerHTML =
+        '<span class="proj-dot" style="background:' + dotColor + ';"></span>' +
+        '<div><p class="proj-name"></p><p class="proj-status"></p></div>';
+      div.querySelector('.proj-name').textContent = p.name;
+      div.querySelector('.proj-status').textContent = subLabel;
+      div.onclick = () => selectProject(p.id);
+      el.appendChild(div);
+    });
+  });
+}
+
+function selectProject(id){
+  currentProjectId = id;
+  const p = projects.find(x => x.id === id);
+  if(!p) return;
+  document.getElementById('noProjectState').style.display = 'none';
+  document.getElementById('projectMain').style.display = 'block';
+  document.getElementById('clientNameLabel').textContent = p.name;
+  const created = p.created_at ? new Date(p.created_at).toLocaleDateString('ru-RU') : '';
+  document.getElementById('clientMetaLabel').textContent = 'Создан ' + created + (p.created_by ? (' \u00b7 ' + p.created_by) : '');
+
+  const state = p.state || {};
+  document.getElementById('transcript').value = state.transcript || '';
+  lastData = { matches: state.matches || [], new_items: state.new_items || [] };
+  if(state.matches || state.new_items){ renderResults(lastData); }
+  if(state.payload){ document.getElementById('payloadBox').textContent = JSON.stringify(state.payload, null, 2); }
+  goStep(state.step || 1);
+  renderSidebar();
+}
+
+async function createNewProject(){
+  const name = prompt('Название проекта (например, имя клиента):');
+  if(!name || !name.trim()) return;
+  const result = await callApps({ action: 'create_project', name: name.trim() });
+  if(result.error){ alert('Ошибка: ' + result.error); return; }
+  projects.unshift(result);
+  selectProject(result.id);
+}
+
+async function setStatus(status){
+  if(!currentProjectId) return;
+  const p = projects.find(x => x.id === currentProjectId);
+  if(!p) return;
+  p.status = status;
+  renderSidebar();
+  await callApps({ action: 'update_project', id: currentProjectId, status: status });
+}
+
+async function removeProject(){
+  if(!currentProjectId) return;
+  const p = projects.find(x => x.id === currentProjectId);
+  if(!p) return;
+  if(!confirm('Удалить проект «' + p.name + '»? Это необратимо.')) return;
+  await callApps({ action: 'delete_project', id: currentProjectId });
+  projects = projects.filter(x => x.id !== currentProjectId);
+  currentProjectId = null;
+  if(projects.length){ selectProject(projects[0].id); }
+  else{
+    renderSidebar();
+    document.getElementById('noProjectState').style.display = 'block';
+    document.getElementById('projectMain').style.display = 'none';
+  }
+}
+
+async function saveCurrentState(extra){
+  if(!currentProjectId) return;
+  const state = Object.assign({
+    transcript: document.getElementById('transcript').value,
+    matches: lastData.matches,
+    new_items: lastData.new_items,
+    step: currentStep
+  }, extra || {});
+  const p = projects.find(x => x.id === currentProjectId);
+  if(p) p.state = state;
+  await callApps({ action: 'update_project', id: currentProjectId, state: state });
 }
 </script>
 </body>
