@@ -59,6 +59,8 @@
   button.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
   button.primary:hover{background:#0C5C48;}
   button.ghost{background:transparent;border:none;color:var(--text-2);text-decoration:underline;padding:0;font-weight:500;}
+  button.curr-btn{padding:5px 12px;font-size:12px;}
+  button.curr-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;}
   button.link-back{background:none;border:none;color:var(--text-3);padding:0;font-size:12px;text-decoration:underline;margin-bottom:12px;}
   button:disabled{opacity:.45;cursor:default;}
   #status{font-size:13px;color:var(--text-2);}
@@ -199,9 +201,14 @@
           готовые строки, которые Apps Script вставит над блоком «Цена» в «Таблице услуг» — ключи названы по буквам столбцов
           (A/B/C — блок/задача/услуга, D — количество, E — часы, I–Q — раскладка по 9 ролям). Столбцы F, G, H
           копируются формулой из строки выше — мы их не трогаем. Запись в Google Sheets уже подключена (кнопка ниже), генерация Slides — ещё нет.</p>
+        <div class="row" style="margin-top:0;">
+          <label style="margin:0;">Валюта КП:</label>
+          <button id="currBtnEUR" class="curr-btn active" onclick="setCurrency('EUR')">EUR €</button>
+          <button id="currBtnUSD" class="curr-btn" onclick="setCurrency('USD')">USD $</button>
+        </div>
         <div class="metrics">
           <div class="metric"><p>Цена клиенту</p><p id="metricPrice">&mdash; считаю...</p></div>
-          <div class="metric"><p>Себестоимость подрядчикам</p><p id="metricCost">&mdash; считаю...</p></div>
+          <div class="metric"><p>Себестоимость подрядчикам (EUR)</p><p id="metricCost">&mdash; считаю...</p></div>
         </div>
       </div>
       </div>
@@ -326,7 +333,7 @@ async function writeNewRows(){
 
     if(result.inserted_rows && result.inserted_rows.length){
       const newTotals = await callApps({ action: 'get_totals', items: result.inserted_rows });
-      if(!newTotals.error){ updateMetrics(newTotals); }
+      if(!newTotals.error){ newItemsTotals = newTotals; updateMetrics(); }
     }
   }catch(err){
     el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
@@ -390,7 +397,17 @@ function renderResults(data){
   }
 }
 
-let existingTotals = { price_eur: 0, contractor_cost_eur: 0 };
+let existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+let newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+let currentCurrency = 'EUR';
+
+function setCurrency(cur){
+  currentCurrency = cur;
+  document.getElementById('currBtnEUR').classList.toggle('active', cur === 'EUR');
+  document.getElementById('currBtnUSD').classList.toggle('active', cur === 'USD');
+  updateMetrics();
+  saveCurrentState();
+}
 
 async function prepareSync(){
   const existing_matches = [];
@@ -436,6 +453,7 @@ async function prepareSync(){
   // Реальная цена по уже существующим позициям каталога — читаем прямо из строк таблицы.
   const byId = {}; CATALOG.forEach(c => byId[c.id] = c);
   const items = existing_matches.map(m => ({ row: byId[m.id] ? byId[m.id].row : null, qty: m.qty })).filter(x => x.row);
+  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
   document.getElementById('metricPrice').textContent = 'считаю...';
   document.getElementById('metricCost').textContent = 'считаю...';
   try{
@@ -452,11 +470,13 @@ async function prepareSync(){
   }
 }
 
-function updateMetrics(extra){
-  const e = extra || { price_eur: 0, contractor_cost_eur: 0 };
-  const price = (existingTotals.price_eur||0) + (e.price_eur||0);
-  const cost = (existingTotals.contractor_cost_eur||0) + (e.contractor_cost_eur||0);
-  document.getElementById('metricPrice').textContent = '\u20ac' + price.toLocaleString('ru-RU');
+function updateMetrics(){
+  const priceEur = (existingTotals.price_eur||0) + (newItemsTotals.price_eur||0);
+  const priceUsd = (existingTotals.price_usd||0) + (newItemsTotals.price_usd||0);
+  const cost = (existingTotals.contractor_cost_eur||0) + (newItemsTotals.contractor_cost_eur||0);
+  const price = currentCurrency === 'USD' ? priceUsd : priceEur;
+  const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
+  document.getElementById('metricPrice').textContent = symbol + price.toLocaleString('ru-RU');
   document.getElementById('metricCost').textContent = '\u20ac' + cost.toLocaleString('ru-RU');
 }
 
@@ -548,7 +568,11 @@ function selectProject(id){
   document.getElementById('transcript').value = state.transcript || '';
   lastData = { matches: state.matches || [], new_items: state.new_items || [] };
   if(state.matches || state.new_items){ renderResults(lastData); }
-  existingTotals = { price_eur: 0, contractor_cost_eur: 0 };
+  existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+  currentCurrency = state.currency || 'EUR';
+  document.getElementById('currBtnEUR').classList.toggle('active', currentCurrency === 'EUR');
+  document.getElementById('currBtnUSD').classList.toggle('active', currentCurrency === 'USD');
   document.getElementById('metricPrice').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
   document.getElementById('metricCost').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
   if(state.payload){ document.getElementById('payloadBox').textContent = JSON.stringify(state.payload, null, 2); }
@@ -612,7 +636,8 @@ async function saveCurrentState(extra){
     transcript: document.getElementById('transcript').value,
     matches: lastData.matches,
     new_items: lastData.new_items,
-    step: currentStep
+    step: currentStep,
+    currency: currentCurrency
   }, extra || {});
   const p = projects.find(x => x.id === currentProjectId);
   if(p) p.state = state;
