@@ -452,13 +452,18 @@ async function callApps(body){
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(Object.assign({ id_token: ID_TOKEN }, body))
   });
-  return response.json();
+  const text = await response.text();
+  try{
+    return JSON.parse(text);
+  }catch(e){
+    throw new Error('Сервер вернул не JSON — вероятно, Apps Script нужно передеплоить (New version) или заново войти в Google. Ответ: ' + text.slice(0,200));
+  }
 }
 
 async function loadProjects(){
   try{
     const result = await callApps({ action: 'list_projects' });
-    if(result.error){ console.error(result.error); return; }
+    if(result.error){ alert('Ошибка загрузки проектов: ' + result.error); return; }
     projects = result.projects || [];
     projects.sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
     renderSidebar();
@@ -470,6 +475,7 @@ async function loadProjects(){
     }
   }catch(err){
     console.error(err);
+    alert('Не удалось загрузить проекты: ' + err.message);
   }
 }
 
@@ -522,10 +528,15 @@ function selectProject(id){
 async function createNewProject(){
   const name = prompt('Название проекта (например, имя клиента):');
   if(!name || !name.trim()) return;
-  const result = await callApps({ action: 'create_project', name: name.trim() });
-  if(result.error){ alert('Ошибка: ' + result.error); return; }
-  projects.unshift(result);
-  selectProject(result.id);
+  try{
+    const result = await callApps({ action: 'create_project', name: name.trim() });
+    if(result.error){ alert('Ошибка: ' + result.error); return; }
+    projects.unshift(result);
+    selectProject(result.id);
+  }catch(err){
+    console.error(err);
+    alert('Не удалось создать проект: ' + err.message);
+  }
 }
 
 async function setStatus(status){
@@ -534,7 +545,12 @@ async function setStatus(status){
   if(!p) return;
   p.status = status;
   renderSidebar();
-  await callApps({ action: 'update_project', id: currentProjectId, status: status });
+  try{
+    await callApps({ action: 'update_project', id: currentProjectId, status: status });
+  }catch(err){
+    console.error(err);
+    alert('Не удалось сохранить статус: ' + err.message);
+  }
 }
 
 async function removeProject(){
@@ -542,7 +558,13 @@ async function removeProject(){
   const p = projects.find(x => x.id === currentProjectId);
   if(!p) return;
   if(!confirm('Удалить проект «' + p.name + '»? Это необратимо.')) return;
-  await callApps({ action: 'delete_project', id: currentProjectId });
+  try{
+    await callApps({ action: 'delete_project', id: currentProjectId });
+  }catch(err){
+    console.error(err);
+    alert('Не удалось удалить проект: ' + err.message);
+    return;
+  }
   projects = projects.filter(x => x.id !== currentProjectId);
   currentProjectId = null;
   if(projects.length){ selectProject(projects[0].id); }
