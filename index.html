@@ -195,12 +195,13 @@
           <span id="writeStatus" style="font-size:12px;color:var(--text-3);"></span>
         </div>
         <div class="row">
-          <button disabled title="Доступно после подключения Apps Script">Сгенерировать КП</button>
+          <button class="primary" onclick="generateKP()">Сгенерировать КП</button>
+          <span id="kpStatus" style="font-size:12px;color:var(--text-3);"></span>
         </div>
         <p class="note"><code>existing_matches</code> — id и qty для уже существующих строк каталога (только чтение цены, без записи в таблицу). <code>new_rows</code> —
           готовые строки, которые Apps Script вставит над блоком «Цена» в «Таблице услуг» — ключи названы по буквам столбцов
           (A/B/C — блок/задача/услуга, D — количество, E — часы, I–Q — раскладка по 9 ролям). Столбцы F, G, H
-          копируются формулой из строки выше — мы их не трогаем. Запись в Google Sheets уже подключена (кнопка ниже), генерация Slides — ещё нет.</p>
+          копируются формулой из строки выше — мы их не трогаем. Запись в Google Sheets и генерация Slides подключены.</p>
         <div class="row" style="margin-top:0;">
           <label style="margin:0;">Валюта КП:</label>
           <button id="currBtnEUR" class="curr-btn active" onclick="setCurrency('EUR')">EUR €</button>
@@ -332,6 +333,7 @@ async function writeNewRows(){
     el.textContent = '\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0441\u0442\u0440\u043e\u043a: ' + result.rows_added;
 
     if(result.inserted_rows && result.inserted_rows.length){
+      lastInsertedRows = result.inserted_rows;
       const newTotals = await callApps({ action: 'get_totals', items: result.inserted_rows });
       if(!newTotals.error){ newItemsTotals = newTotals; updateMetrics(); }
     }
@@ -398,6 +400,8 @@ function renderResults(data){
 }
 
 let existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+let lastExistingItems = [];
+let lastInsertedRows = [];
 let newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
 let currentCurrency = 'EUR';
 
@@ -453,6 +457,8 @@ async function prepareSync(){
   // Реальная цена по уже существующим позициям каталога — читаем прямо из строк таблицы.
   const byId = {}; CATALOG.forEach(c => byId[c.id] = c);
   const items = existing_matches.map(m => ({ row: byId[m.id] ? byId[m.id].row : null, qty: m.qty })).filter(x => x.row);
+  lastExistingItems = items;
+  lastInsertedRows = []; // новые позиции ещё не записаны — сбрасываем до следующей записи
   newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
   document.getElementById('metricPrice').textContent = 'считаю...';
   document.getElementById('metricCost').textContent = 'считаю...';
@@ -478,6 +484,25 @@ function updateMetrics(){
   const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
   document.getElementById('metricPrice').textContent = symbol + price.toLocaleString('ru-RU');
   document.getElementById('metricCost').textContent = '\u20ac' + cost.toLocaleString('ru-RU');
+}
+
+async function generateKP(){
+  const el = document.getElementById('kpStatus');
+  const allItems = lastExistingItems.concat(lastInsertedRows);
+  if(!allItems.length){ el.textContent = '\u041d\u0435\u0442 \u043e\u0434\u043e\u0431\u0440\u0435\u043d\u043d\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439'; return; }
+  el.innerHTML = '<span class="spinner"></span>\u0421\u043e\u0431\u0438\u0440\u0430\u044e \u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044e...';
+  try{
+    const proj = projects.find(p => p.id === currentProjectId);
+    const projectName = proj ? proj.name : 'Client';
+    const result = await callApps({ action: 'generate_kp', items: allItems, project_name: projectName, currency: currentCurrency });
+    if(result.error){ throw new Error(result.error); }
+    const symbol = result.currency === 'USD' ? '$' : '\u20ac';
+    el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + symbol + result.total.toLocaleString('ru-RU') + ')';
+    goStep(4);
+    saveCurrentState({ kp_url: result.url });
+  }catch(err){
+    el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
+  }
 }
 
 function copyPayload(){
