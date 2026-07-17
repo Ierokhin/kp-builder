@@ -61,6 +61,13 @@
   button.ghost{background:transparent;border:none;color:var(--text-2);text-decoration:underline;padding:0;font-weight:500;}
   button.curr-btn{padding:5px 12px;font-size:12px;}
   button.curr-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+  button.icon-btn{padding:7px 9px;border-color:transparent;}
+  button.icon-btn-green{background:var(--green-bg);color:var(--green);}
+  button.icon-btn-green:hover{background:#D5EAC3;}
+  button.icon-btn-amber{background:var(--amber-bg);color:var(--amber);}
+  button.icon-btn-amber:hover{background:#F5E2BC;}
+  button.icon-btn-red{background:var(--red-bg);color:var(--red);}
+  button.icon-btn-red:hover{background:#F9D6D6;}
   button.link-back{background:none;border:none;color:var(--text-3);padding:0;font-size:12px;text-decoration:underline;margin-bottom:12px;}
   button:disabled{opacity:.45;cursor:default;}
   #status{font-size:13px;color:var(--text-2);}
@@ -92,6 +99,10 @@
   .metric{background:var(--sidebar);border-radius:8px;padding:10px 14px;}
   .metric p:first-child{font-size:11px;color:var(--text-3);margin:0 0 2px;}
   .metric p:last-child{font-size:16px;font-weight:600;margin:0;}
+  .role-cost-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 16px;margin-top:4px;}
+  .role-cost-grid .rc-item{display:flex;justify-content:space-between;font-size:12.5px;}
+  .role-cost-grid .rc-item span:first-child{color:var(--text-3);}
+  .role-cost-grid .rc-item span:last-child{font-weight:600;}
   .section-title{font-size:13px;font-weight:600;margin:22px 0 10px;display:flex;align-items:center;gap:8px;}
   .pct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px;}
   .pct-cell{display:flex;align-items:center;gap:4px;}
@@ -135,9 +146,9 @@
             <p class="client-meta" id="clientMetaLabel">—</p>
           </div>
           <div style="display:flex;gap:6px;">
-            <button title="Готово" onclick="setStatus('ready')"><i class="ti ti-check" aria-hidden="true"></i></button>
-            <button title="В архив" onclick="setStatus('archived')"><i class="ti ti-archive" aria-hidden="true"></i></button>
-            <button title="Удалить" onclick="removeProject()" style="color:var(--red);"><i class="ti ti-trash" aria-hidden="true"></i></button>
+            <button title="Готово" class="icon-btn icon-btn-green" onclick="setStatus('ready')"><i class="ti ti-check" aria-hidden="true"></i></button>
+            <button title="В архив" class="icon-btn icon-btn-amber" onclick="setStatus('archived')"><i class="ti ti-archive" aria-hidden="true"></i></button>
+            <button title="Удалить" class="icon-btn icon-btn-red" onclick="removeProject()"><i class="ti ti-trash" aria-hidden="true"></i></button>
           </div>
         </div>
 
@@ -209,7 +220,10 @@
         </div>
         <div class="metrics">
           <div class="metric"><p>Цена клиенту</p><p id="metricPrice">&mdash; считаю...</p></div>
-          <div class="metric"><p>Себестоимость подрядчикам (EUR)</p><p id="metricCost">&mdash; считаю...</p></div>
+        </div>
+        <div class="metric" style="margin-top:10px;">
+          <p>Себестоимость подрядчикам (EUR), по ролям</p>
+          <div id="metricCostByRole" class="role-cost-grid">&mdash; считаю...</div>
         </div>
       </div>
       </div>
@@ -399,10 +413,11 @@ function renderResults(data){
   }
 }
 
-let existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+const EMPTY_ROLE_COSTS = { CD:0, AD:0, Designer:0, Copywriter:0, Illustrator:0, Motion:0, '3D':0, Other:0, Extra:0 };
+let existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
 let lastExistingItems = [];
 let lastInsertedRows = [];
-let newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+let newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
 let currentCurrency = 'EUR';
 
 function setCurrency(cur){
@@ -459,9 +474,9 @@ async function prepareSync(){
   const items = existing_matches.map(m => ({ row: byId[m.id] ? byId[m.id].row : null, qty: m.qty })).filter(x => x.row);
   lastExistingItems = items;
   lastInsertedRows = []; // новые позиции ещё не записаны — сбрасываем до следующей записи
-  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
   document.getElementById('metricPrice').textContent = 'считаю...';
-  document.getElementById('metricCost').textContent = 'считаю...';
+  document.getElementById('metricCostByRole').textContent = 'считаю...';
   try{
     const totals = await callApps({ action: 'get_totals', items: items });
     if(!totals.error){
@@ -479,17 +494,42 @@ async function prepareSync(){
 function updateMetrics(){
   const priceEur = (existingTotals.price_eur||0) + (newItemsTotals.price_eur||0);
   const priceUsd = (existingTotals.price_usd||0) + (newItemsTotals.price_usd||0);
-  const cost = (existingTotals.contractor_cost_eur||0) + (newItemsTotals.contractor_cost_eur||0);
   const price = currentCurrency === 'USD' ? priceUsd : priceEur;
   const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
   document.getElementById('metricPrice').textContent = symbol + price.toLocaleString('ru-RU');
-  document.getElementById('metricCost').textContent = '\u20ac' + cost.toLocaleString('ru-RU');
+
+  const roleA = existingTotals.contractor_cost_by_role || EMPTY_ROLE_COSTS;
+  const roleB = newItemsTotals.contractor_cost_by_role || EMPTY_ROLE_COSTS;
+  const el = document.getElementById('metricCostByRole');
+  el.innerHTML = '';
+  ROLE_KEYS.forEach(k => {
+    const val = (roleA[k]||0) + (roleB[k]||0);
+    const div = document.createElement('div');
+    div.className = 'rc-item';
+    div.innerHTML = '<span>' + k + '</span><span>\u20ac' + val.toLocaleString('ru-RU') + '</span>';
+    el.appendChild(div);
+  });
 }
 
 async function generateKP(){
   const el = document.getElementById('kpStatus');
-  const allItems = lastExistingItems.concat(lastInsertedRows);
-  if(!allItems.length){ el.textContent = '\u041d\u0435\u0442 \u043e\u0434\u043e\u0431\u0440\u0435\u043d\u043d\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439'; return; }
+
+  // Пересчитываем отмеченные каталожные позиции напрямую с экрана — не полагаемся
+  // на переменную, заполненную предыдущим шагом, чтобы не зависеть от таймингов.
+  const byId = {}; CATALOG.forEach(c => byId[c.id] = c);
+  const existingItems = [];
+  document.querySelectorAll('#resultsBody tr').forEach(tr => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    if(cb && cb.checked){
+      const id = parseInt(cb.dataset.id);
+      const qtyInput = tr.querySelector('input[data-qty]');
+      const c = byId[id];
+      if(c && c.row){ existingItems.push({ row: c.row, qty: parseInt(qtyInput.value)||1 }); }
+    }
+  });
+
+  const allItems = existingItems.concat(lastInsertedRows);
+  if(!allItems.length){ el.textContent = '\u041d\u0435\u0442 \u043e\u0434\u043e\u0431\u0440\u0435\u043d\u043d\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439 \u2014 \u043e\u0442\u043c\u0435\u0442\u044c\u0442\u0435 \u0443\u0441\u043b\u0443\u0433\u0438 \u043d\u0430 \u0448\u0430\u0433\u0435 2'; return; }
   el.innerHTML = '<span class="spinner"></span>\u0421\u043e\u0431\u0438\u0440\u0430\u044e \u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044e...';
   try{
     const proj = projects.find(p => p.id === currentProjectId);
@@ -593,13 +633,15 @@ function selectProject(id){
   document.getElementById('transcript').value = state.transcript || '';
   lastData = { matches: state.matches || [], new_items: state.new_items || [] };
   if(state.matches || state.new_items){ renderResults(lastData); }
-  existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
-  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0 };
+  existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
+  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
+  lastExistingItems = [];
+  lastInsertedRows = [];
   currentCurrency = state.currency || 'EUR';
   document.getElementById('currBtnEUR').classList.toggle('active', currentCurrency === 'EUR');
   document.getElementById('currBtnUSD').classList.toggle('active', currentCurrency === 'USD');
   document.getElementById('metricPrice').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
-  document.getElementById('metricCost').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
+  document.getElementById('metricCostByRole').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
   if(state.payload){ document.getElementById('payloadBox').textContent = JSON.stringify(state.payload, null, 2); }
   goStep(state.step || 1);
   renderSidebar();
