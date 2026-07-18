@@ -334,12 +334,7 @@ async function extract(){
   try{
     await loadCatalog(); // всегда берём каталог свежим прямо перед анализом
     status.innerHTML = '<span class="spinner"></span>\u0410\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u0443\u044e \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442...';
-    const response = await fetch(appsUrl(), {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "chat", id_token: ID_TOKEN, system: systemPrompt(), message: text })
-    });
-    const parsed = await response.json();
+    const parsed = await callApps({ action: "chat", system: systemPrompt(), message: text });
     if(parsed.error){ throw new Error(parsed.error + (parsed.details ? (' \u2014 ' + parsed.details) : '')); }
     lastData = { matches: parsed.matches||[], new_items: parsed.new_items||[] };
     renderResults(lastData);
@@ -584,10 +579,27 @@ async function callApps(body){
     body: JSON.stringify(Object.assign({ id_token: ID_TOKEN }, body))
   });
   const text = await response.text();
+  let result;
   try{
-    return JSON.parse(text);
+    result = JSON.parse(text);
   }catch(e){
     throw new Error('Сервер вернул не JSON — вероятно, Apps Script нужно передеплоить (New version) или заново войти в Google. Ответ: ' + text.slice(0,200));
+  }
+  if(result.error && String(result.error).indexOf('unauthorized') === 0){
+    showAuthGate('Сессия входа истекла — войдите ещё раз, введённые данные не потеряются.');
+    throw new Error('Сессия истекла — форма входа снова наверху, войдите и повторите действие.');
+  }
+  return result;
+}
+
+function showAuthGate(message){
+  document.getElementById('authGate').style.display = 'block';
+  document.getElementById('appShell').style.display = 'none';
+  const err = document.getElementById('authError');
+  err.style.color = 'var(--text-2)';
+  err.textContent = message || '';
+  if(typeof google !== 'undefined' && google.accounts){
+    try{ google.accounts.id.prompt(); }catch(e){ /* one-tap может быть недоступен — обычная кнопка всё равно на месте */ }
   }
 }
 
