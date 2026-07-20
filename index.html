@@ -533,6 +533,14 @@ async function prepareSync(){
   }
 }
 
+function buildRoleGridHtml(roleCosts){
+  const r = roleCosts || EMPTY_ROLE_COSTS;
+  return ROLE_KEYS.map(k => {
+    const val = r[k] || 0;
+    return '<div class="rc-item"><span>' + k + '</span><span>\u20ac' + val.toLocaleString('ru-RU') + '</span></div>';
+  }).join('');
+}
+
 function updateMetrics(){
   const priceEur = (existingTotals.price_eur||0) + (newItemsTotals.price_eur||0);
   const priceUsd = (existingTotals.price_usd||0) + (newItemsTotals.price_usd||0);
@@ -542,15 +550,9 @@ function updateMetrics(){
 
   const roleA = existingTotals.contractor_cost_by_role || EMPTY_ROLE_COSTS;
   const roleB = newItemsTotals.contractor_cost_by_role || EMPTY_ROLE_COSTS;
-  const el = document.getElementById('metricCostByRole');
-  el.innerHTML = '';
-  ROLE_KEYS.forEach(k => {
-    const val = (roleA[k]||0) + (roleB[k]||0);
-    const div = document.createElement('div');
-    div.className = 'rc-item';
-    div.innerHTML = '<span>' + k + '</span><span>\u20ac' + val.toLocaleString('ru-RU') + '</span>';
-    el.appendChild(div);
-  });
+  const combined = {};
+  ROLE_KEYS.forEach(k => { combined[k] = (roleA[k]||0) + (roleB[k]||0); });
+  document.getElementById('metricCostByRole').innerHTML = buildRoleGridHtml(combined);
 }
 
 async function generateKP(){
@@ -576,11 +578,16 @@ async function generateKP(){
     const projectName = proj ? proj.name : 'Client';
     const projectStatus = proj ? proj.status : 'active';
     const existingFileId = (proj && proj.state && proj.state.kp_file_id) || null;
+
+    // Считаем расходы по ролям заново напрямую здесь — не полагаемся на то,
+    // что «Подготовить для калькулятора» уже нажималось в этой сессии.
+    const totals = await callApps({ action: 'get_totals', items: allItems });
+    const roleHtml = totals.error ? '' : buildRoleGridHtml(totals.contractor_cost_by_role);
+
     const result = await callApps({ action: 'generate_kp', items: allItems, project_name: projectName, currency: currentCurrency, status: projectStatus, existing_file_id: existingFileId });
     if(result.error){ throw new Error(result.error); }
     const symbol = result.currency === 'USD' ? '$' : '\u20ac';
     el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + symbol + result.total.toLocaleString('ru-RU') + ')';
-    const roleHtml = document.getElementById('metricCostByRole').innerHTML;
     applyKpResult(result.url, symbol + result.total.toLocaleString('ru-RU'), roleHtml);
     goStep(4);
     saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: symbol + result.total.toLocaleString('ru-RU'), kp_role_costs_html: roleHtml });
