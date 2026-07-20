@@ -582,7 +582,9 @@ async function generateKP(){
     // Считаем расходы по ролям заново напрямую здесь — не полагаемся на то,
     // что «Подготовить для калькулятора» уже нажималось в этой сессии.
     const totals = await callApps({ action: 'get_totals', items: allItems });
-    const roleHtml = totals.error ? '' : buildRoleGridHtml(totals.contractor_cost_by_role);
+    const roleHtml = totals.error
+      ? '<div style="grid-column:1/-1;color:var(--red);">\u041e\u0448\u0438\u0431\u043a\u0430 get_totals: ' + totals.error + '</div>'
+      : buildRoleGridHtml(totals.contractor_cost_by_role);
 
     const result = await callApps({ action: 'generate_kp', items: allItems, project_name: projectName, currency: currentCurrency, status: projectStatus, existing_file_id: existingFileId });
     if(result.error){ throw new Error(result.error); }
