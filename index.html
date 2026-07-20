@@ -326,12 +326,15 @@ window.addEventListener('load', function(){
   }
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
-    callback: handleCredentialResponse
+    callback: handleCredentialResponse,
+    auto_select: true,           // тихий автовход, если аккаунт уже известен браузеру
+    cancel_on_tap_outside: false // не закрывать подсказку случайным кликом мимо
   });
   google.accounts.id.renderButton(
     document.getElementById('googleSignInBtn'),
     { theme: 'outline', size: 'large', text: 'signin_with' }
   );
+  google.accounts.id.prompt(); // пробуем войти автоматически, без клика
 });
 
 function handleCredentialResponse(response){
