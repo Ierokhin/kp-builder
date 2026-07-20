@@ -70,6 +70,8 @@
   button.icon-btn-amber:hover{background:#F0D298;}
   button.icon-btn-red{background:var(--red-bg);color:var(--red);border-color:#EDA7A7;}
   button.icon-btn-red:hover{background:#F5C0C0;}
+  a.icon-btn-teal{background:var(--teal-bg);color:var(--teal);border-color:#7FC7AE;}
+  a.icon-btn-teal:hover{background:#C0EBDB;}
   button.link-back{background:none;border:none;color:var(--text-3);padding:0;font-size:12px;text-decoration:underline;margin-bottom:12px;}
   button:disabled{opacity:.45;cursor:default;}
   #status{font-size:13px;color:var(--text-2);}
@@ -148,9 +150,8 @@
             <p class="client-meta" id="clientMetaLabel">—</p>
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
-            <a id="headerKpLink" href="#" target="_blank" class="icon-btn" style="display:none;background:var(--teal-bg);color:var(--teal);border-color:#9FD6C2;text-decoration:none;">
+            <a id="headerKpLink" href="#" target="_blank" class="icon-btn icon-btn-teal" style="display:none;text-decoration:none;">
               <i class="ti ti-external-link" aria-hidden="true"></i> Открыть КП</a>
-            <button title="Готово" class="icon-btn icon-btn-green" onclick="setStatus('ready')"><i class="ti ti-check" aria-hidden="true"></i> Готово</button>
             <button title="В архив" class="icon-btn icon-btn-amber" onclick="setStatus('archived')"><i class="ti ti-archive" aria-hidden="true"></i> В архив</button>
             <button title="Удалить" class="icon-btn icon-btn-red" onclick="removeProject()"><i class="ti ti-trash" aria-hidden="true"></i> Удалить</button>
           </div>
@@ -237,8 +238,8 @@
           <div style="width:44px;height:44px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
             <i class="ti ti-check" style="font-size:22px;color:var(--green);" aria-hidden="true"></i>
           </div>
-          <p style="font-size:15px;font-weight:600;margin:0 0 6px;">КП готово</p>
-          <a href="#" id="kpFinalLink" target="_blank" style="font-size:13px;">Открыть в Google Slides &rarr;</a>
+          <p style="font-size:15px;font-weight:600;margin:0 0 4px;">КП готово</p>
+          <p style="font-size:12px;color:var(--text-3);margin:0;">Ссылка — кнопка «Открыть КП» вверху страницы</p>
         </div>
         <div class="metrics" style="justify-content:center;">
           <div class="metric"><p>Итоговая цена клиенту</p><p id="kpFinalPrice">&mdash;</p></div>
@@ -573,14 +574,16 @@ async function generateKP(){
   try{
     const proj = projects.find(p => p.id === currentProjectId);
     const projectName = proj ? proj.name : 'Client';
-    const result = await callApps({ action: 'generate_kp', items: allItems, project_name: projectName, currency: currentCurrency });
+    const projectStatus = proj ? proj.status : 'active';
+    const existingFileId = (proj && proj.state && proj.state.kp_file_id) || null;
+    const result = await callApps({ action: 'generate_kp', items: allItems, project_name: projectName, currency: currentCurrency, status: projectStatus, existing_file_id: existingFileId });
     if(result.error){ throw new Error(result.error); }
     const symbol = result.currency === 'USD' ? '$' : '\u20ac';
     el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + symbol + result.total.toLocaleString('ru-RU') + ')';
     const roleHtml = document.getElementById('metricCostByRole').innerHTML;
     applyKpResult(result.url, symbol + result.total.toLocaleString('ru-RU'), roleHtml);
     goStep(4);
-    saveCurrentState({ kp_url: result.url, kp_total_label: symbol + result.total.toLocaleString('ru-RU'), kp_role_costs_html: roleHtml });
+    saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: symbol + result.total.toLocaleString('ru-RU'), kp_role_costs_html: roleHtml });
   }catch(err){
     el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
   }
@@ -591,11 +594,11 @@ function applyKpResult(url, totalLabel, roleHtml){
   headerLink.href = url;
   headerLink.style.display = 'inline-flex';
 
-  document.getElementById('kpFinalLink').href = url;
-  document.getElementById('kpFinalPrice').textContent = totalLabel;
+  document.getElementById('kpFinalPrice').textContent = totalLabel && totalLabel.trim() ? totalLabel : '\u2014';
 
   const roleGrid = document.getElementById('kpFinalCostByRole');
-  roleGrid.innerHTML = roleHtml || document.getElementById('metricCostByRole').innerHTML;
+  const fallback = document.getElementById('metricCostByRole').innerHTML;
+  roleGrid.innerHTML = (roleHtml && roleHtml.trim()) ? roleHtml : (fallback && fallback.trim() ? fallback : '\u2014 нет данных, откройте шаг «Калькулятор» и нажмите «Подготовить» ещё раз');
 }
 
 function copyPayload(){
@@ -662,16 +665,32 @@ async function loadProjects(){
   }
 }
 
+let archiveExpanded = false;
+
 function renderSidebar(){
   const el = document.getElementById('sidebarContent');
   el.innerHTML = '';
   STATUS_ORDER.forEach(status => {
     const group = projects.filter(p => p.status === status);
     if(!group.length) return;
+
     const h = document.createElement('div');
     h.className = 'sidebar-group';
-    h.textContent = STATUS_LABELS[status];
-    el.appendChild(h);
+    if(status === 'archived'){
+      h.style.cursor = 'pointer';
+      h.style.display = 'flex';
+      h.style.justifyContent = 'space-between';
+      h.style.alignItems = 'center';
+      h.innerHTML = '<span>' + STATUS_LABELS[status] + ' (' + group.length + ')</span>' +
+        '<i class="ti ti-chevron-' + (archiveExpanded ? 'up' : 'down') + '" aria-hidden="true"></i>';
+      h.onclick = () => { archiveExpanded = !archiveExpanded; renderSidebar(); };
+      el.appendChild(h);
+      if(!archiveExpanded) return;
+    } else {
+      h.textContent = STATUS_LABELS[status];
+      el.appendChild(h);
+    }
+
     group.forEach(p => {
       const div = document.createElement('div');
       div.className = 'proj' + (p.id === currentProjectId ? ' active' : ' dim');
@@ -719,7 +738,6 @@ function selectProject(id){
     applyKpResult(state.kp_url, state.kp_total_label || '', state.kp_role_costs_html || '');
   } else {
     headerLink.style.display = 'none';
-    document.getElementById('kpFinalLink').href = '#';
     document.getElementById('kpFinalPrice').textContent = '\u2014';
     document.getElementById('kpFinalCostByRole').innerHTML = '\u2014';
   }
