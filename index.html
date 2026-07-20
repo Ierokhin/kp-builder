@@ -147,7 +147,9 @@
             <p class="client-name" id="clientNameLabel">—</p>
             <p class="client-meta" id="clientMetaLabel">—</p>
           </div>
-          <div style="display:flex;gap:6px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <a id="headerKpLink" href="#" target="_blank" class="icon-btn" style="display:none;background:var(--teal-bg);color:var(--teal);border-color:#9FD6C2;text-decoration:none;">
+              <i class="ti ti-external-link" aria-hidden="true"></i> Открыть КП</a>
             <button title="Готово" class="icon-btn icon-btn-green" onclick="setStatus('ready')"><i class="ti ti-check" aria-hidden="true"></i> Готово</button>
             <button title="В архив" class="icon-btn icon-btn-amber" onclick="setStatus('archived')"><i class="ti ti-archive" aria-hidden="true"></i> В архив</button>
             <button title="Удалить" class="icon-btn icon-btn-red" onclick="removeProject()"><i class="ti ti-trash" aria-hidden="true"></i> Удалить</button>
@@ -228,6 +230,24 @@
           <div id="metricCostByRole" class="role-cost-grid">&mdash; считаю...</div>
         </div>
       </div>
+
+      <div class="view" id="viewKP">
+        <button class="link-back" onclick="goStep(3)">&larr; вернуться к калькулятору</button>
+        <div style="text-align:center;padding:16px 0 20px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+            <i class="ti ti-check" style="font-size:22px;color:var(--green);" aria-hidden="true"></i>
+          </div>
+          <p style="font-size:15px;font-weight:600;margin:0 0 6px;">КП готово</p>
+          <a href="#" id="kpFinalLink" target="_blank" style="font-size:13px;">Открыть в Google Slides &rarr;</a>
+        </div>
+        <div class="metrics" style="justify-content:center;">
+          <div class="metric"><p>Итоговая цена клиенту</p><p id="kpFinalPrice">&mdash;</p></div>
+        </div>
+        <div class="metric" style="margin-top:10px;">
+          <p>Себестоимость подрядчикам (EUR), по ролям</p>
+          <div id="kpFinalCostByRole" class="role-cost-grid">&mdash;</div>
+        </div>
+      </div>
       </div>
 
     </div>
@@ -256,10 +276,11 @@ let currentStep = 1;
 
 function goStep(n){
   currentStep = n;
-  ['viewInput','viewReview','viewSync'].forEach(id => document.getElementById(id).classList.remove('shown'));
+  ['viewInput','viewReview','viewSync','viewKP'].forEach(id => document.getElementById(id).classList.remove('shown'));
   if(n===1) document.getElementById('viewInput').classList.add('shown');
   if(n===2) document.getElementById('viewReview').classList.add('shown');
   if(n===3) document.getElementById('viewSync').classList.add('shown');
+  if(n===4) document.getElementById('viewKP').classList.add('shown');
   for(let i=1;i<=4;i++){
     const el = document.getElementById('step'+i);
     el.classList.remove('active','done');
@@ -553,11 +574,25 @@ async function generateKP(){
     if(result.error){ throw new Error(result.error); }
     const symbol = result.currency === 'USD' ? '$' : '\u20ac';
     el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + symbol + result.total.toLocaleString('ru-RU') + ')';
+    const roleHtml = document.getElementById('metricCostByRole').innerHTML;
+    applyKpResult(result.url, symbol + result.total.toLocaleString('ru-RU'), roleHtml);
     goStep(4);
-    saveCurrentState({ kp_url: result.url });
+    saveCurrentState({ kp_url: result.url, kp_total_label: symbol + result.total.toLocaleString('ru-RU'), kp_role_costs_html: roleHtml });
   }catch(err){
     el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
   }
+}
+
+function applyKpResult(url, totalLabel, roleHtml){
+  const headerLink = document.getElementById('headerKpLink');
+  headerLink.href = url;
+  headerLink.style.display = 'inline-flex';
+
+  document.getElementById('kpFinalLink').href = url;
+  document.getElementById('kpFinalPrice').textContent = totalLabel;
+
+  const roleGrid = document.getElementById('kpFinalCostByRole');
+  roleGrid.innerHTML = roleHtml || document.getElementById('metricCostByRole').innerHTML;
 }
 
 function copyPayload(){
@@ -675,6 +710,17 @@ function selectProject(id){
   document.getElementById('metricPrice').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
   document.getElementById('metricCostByRole').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
   if(state.payload){ document.getElementById('payloadBox').textContent = JSON.stringify(state.payload, null, 2); }
+
+  const headerLink = document.getElementById('headerKpLink');
+  if(state.kp_url){
+    applyKpResult(state.kp_url, state.kp_total_label || '', state.kp_role_costs_html || '');
+  } else {
+    headerLink.style.display = 'none';
+    document.getElementById('kpFinalLink').href = '#';
+    document.getElementById('kpFinalPrice').textContent = '\u2014';
+    document.getElementById('kpFinalCostByRole').innerHTML = '\u2014';
+  }
+
   goStep(state.step || 1);
   renderSidebar();
 }
