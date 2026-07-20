@@ -62,13 +62,14 @@
   button.ghost{background:transparent;border:none;color:var(--text-2);text-decoration:underline;padding:0;font-weight:500;}
   button.curr-btn{padding:5px 12px;font-size:12px;}
   button.curr-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;}
-  button.icon-btn{padding:7px 9px;border-color:transparent;}
-  button.icon-btn-green{background:var(--green-bg);color:var(--green);}
-  button.icon-btn-green:hover{background:#D5EAC3;}
-  button.icon-btn-amber{background:var(--amber-bg);color:var(--amber);}
-  button.icon-btn-amber:hover{background:#F5E2BC;}
-  button.icon-btn-red{background:var(--red-bg);color:var(--red);}
-  button.icon-btn-red:hover{background:#F9D6D6;}
+  button.icon-btn{padding:8px 12px;font-size:12.5px;font-weight:600;border-width:1.5px;border-style:solid;display:inline-flex;align-items:center;gap:5px;}
+  button.icon-btn i{font-size:15px;}
+  button.icon-btn-green{background:var(--green-bg);color:var(--green);border-color:#A9D488;}
+  button.icon-btn-green:hover{background:#C9E8AE;}
+  button.icon-btn-amber{background:var(--amber-bg);color:var(--amber);border-color:#EABD73;}
+  button.icon-btn-amber:hover{background:#F0D298;}
+  button.icon-btn-red{background:var(--red-bg);color:var(--red);border-color:#EDA7A7;}
+  button.icon-btn-red:hover{background:#F5C0C0;}
   button.link-back{background:none;border:none;color:var(--text-3);padding:0;font-size:12px;text-decoration:underline;margin-bottom:12px;}
   button:disabled{opacity:.45;cursor:default;}
   #status{font-size:13px;color:var(--text-2);}
@@ -147,9 +148,9 @@
             <p class="client-meta" id="clientMetaLabel">—</p>
           </div>
           <div style="display:flex;gap:6px;">
-            <button title="Готово" class="icon-btn icon-btn-green" onclick="setStatus('ready')"><i class="ti ti-check" aria-hidden="true"></i></button>
-            <button title="В архив" class="icon-btn icon-btn-amber" onclick="setStatus('archived')"><i class="ti ti-archive" aria-hidden="true"></i></button>
-            <button title="Удалить" class="icon-btn icon-btn-red" onclick="removeProject()"><i class="ti ti-trash" aria-hidden="true"></i></button>
+            <button title="Готово" class="icon-btn icon-btn-green" onclick="setStatus('ready')"><i class="ti ti-check" aria-hidden="true"></i> Готово</button>
+            <button title="В архив" class="icon-btn icon-btn-amber" onclick="setStatus('archived')"><i class="ti ti-archive" aria-hidden="true"></i> В архив</button>
+            <button title="Удалить" class="icon-btn icon-btn-red" onclick="removeProject()"><i class="ti ti-trash" aria-hidden="true"></i> Удалить</button>
           </div>
         </div>
 
