@@ -327,15 +327,12 @@ window.addEventListener('load', function(){
   }
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
-    callback: handleCredentialResponse,
-    auto_select: true,           // тихий автовход, если аккаунт уже известен браузеру
-    cancel_on_tap_outside: false // не закрывать подсказку случайным кликом мимо
+    callback: handleCredentialResponse
   });
   google.accounts.id.renderButton(
     document.getElementById('googleSignInBtn'),
     { theme: 'outline', size: 'large', text: 'signin_with' }
   );
-  google.accounts.id.prompt(); // пробуем войти автоматически, без клика
 });
 
 function handleCredentialResponse(response){
@@ -579,16 +576,12 @@ async function generateKP(){
     const projectStatus = proj ? proj.status : 'active';
     const existingFileId = (proj && proj.state && proj.state.kp_file_id) || null;
 
-    // Считаем расходы по ролям заново напрямую здесь — не полагаемся на то,
-    // что «Подготовить для калькулятора» уже нажималось в этой сессии.
-    const totals = await callApps({ action: 'get_totals', items: allItems });
-    const roleHtml = totals.error
-      ? '<div style="grid-column:1/-1;color:var(--red);">\u041e\u0448\u0438\u0431\u043a\u0430 get_totals: ' + totals.error + '</div>'
-      : buildRoleGridHtml(totals.contractor_cost_by_role);
-
+    // Один запрос делает всё: генерирует КП и сразу считает раскладку по ролям
+    // по тем же строкам — раньше это были два отдельных запроса, которые могли разойтись.
     const result = await callApps({ action: 'generate_kp', items: allItems, project_name: projectName, currency: currentCurrency, status: projectStatus, existing_file_id: existingFileId });
     if(result.error){ throw new Error(result.error); }
     const symbol = result.currency === 'USD' ? '$' : '\u20ac';
+    const roleHtml = buildRoleGridHtml(result.contractor_cost_by_role);
     el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + symbol + result.total.toLocaleString('ru-RU') + ')';
     applyKpResult(result.url, symbol + result.total.toLocaleString('ru-RU'), roleHtml);
     goStep(4);
@@ -654,9 +647,6 @@ function showAuthGate(message){
   const err = document.getElementById('authError');
   err.style.color = 'var(--text-2)';
   err.textContent = message || '';
-  if(typeof google !== 'undefined' && google.accounts){
-    try{ google.accounts.id.prompt(); }catch(e){ /* one-tap может быть недоступен — обычная кнопка всё равно на месте */ }
-  }
 }
 
 async function loadProjects(){
