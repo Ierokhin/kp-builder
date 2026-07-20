@@ -62,7 +62,7 @@
   button.ghost{background:transparent;border:none;color:var(--text-2);text-decoration:underline;padding:0;font-weight:500;}
   button.curr-btn{padding:5px 12px;font-size:12px;}
   button.curr-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;}
-  button.icon-btn{padding:8px 12px;font-size:12.5px;font-weight:600;border-width:1.5px;border-style:solid;display:inline-flex;align-items:center;gap:5px;}
+  button.icon-btn, a.icon-btn{cursor:pointer;font-family:inherit;padding:8px 12px;font-size:12.5px;font-weight:600;border-width:1.5px;border-style:solid;display:inline-flex;align-items:center;gap:5px;border-radius:8px;}
   button.icon-btn i{font-size:15px;}
   button.icon-btn-green{background:var(--green-bg);color:var(--green);border-color:#A9D488;}
   button.icon-btn-green:hover{background:#C9E8AE;}
@@ -597,8 +597,12 @@ function applyKpResult(url, totalLabel, roleHtml){
   document.getElementById('kpFinalPrice').textContent = totalLabel && totalLabel.trim() ? totalLabel : '\u2014';
 
   const roleGrid = document.getElementById('kpFinalCostByRole');
-  const fallback = document.getElementById('metricCostByRole').innerHTML;
-  roleGrid.innerHTML = (roleHtml && roleHtml.trim()) ? roleHtml : (fallback && fallback.trim() ? fallback : '\u2014 нет данных, откройте шаг «Калькулятор» и нажмите «Подготовить» ещё раз');
+  const looksLikePlaceholder = !roleHtml || !roleHtml.trim() ||
+    roleHtml.indexOf('\u0441\u0447\u0438\u0442\u0430\u044e') !== -1 ||      // "считаю..."
+    roleHtml.indexOf('\u0441\u0438\u043d\u0445\u0440\u043e\u043d') !== -1;  // "синхрониз..."
+  roleGrid.innerHTML = looksLikePlaceholder
+    ? '\u2014 нет сохранённых данных для этого КП. Откройте шаг «Калькулятор», нажмите «Подготовить для калькулятора», затем сгенерируйте КП заново.'
+    : roleHtml;
 }
 
 function copyPayload(){
