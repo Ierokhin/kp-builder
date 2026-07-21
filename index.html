@@ -195,8 +195,9 @@
         <div style="position:relative;margin:10px 0 4px;">
           <input type="text" id="manualAddSearch" class="txt-input" placeholder="Если ИИ что-то пропустил — найдите услугу в каталоге и добавьте вручную..."
             oninput="filterManualAdd()" onfocus="filterManualAdd()"
-            onblur="setTimeout(function(){document.getElementById('manualAddResults').style.display='none';},150)">
-          <div id="manualAddResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;max-height:240px;overflow-y:auto;border:1px solid var(--border-strong);border-radius:8px;margin-top:4px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);"></div>
+            onblur="setTimeout(function(){document.getElementById('manualAddResults').style.display='none';document.getElementById('manualAddFade').style.display='none';},150)">
+          <div id="manualAddResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;max-height:240px;overflow-y:auto;border:1px solid var(--border-strong);border-radius:8px;margin-top:4px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);" onscroll="updateManualAddFade()"></div>
+          <div id="manualAddFade" style="display:none;position:absolute;left:1px;right:1px;top:calc(100% + 4px + 240px - 29px);height:28px;background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.97));pointer-events:none;border-radius:0 0 7px 7px;z-index:6;"></div>
         </div>
 
         <div id="newItemsSection" style="display:none;">
@@ -417,6 +418,7 @@ function filterManualAdd(){
   if(!matches.length){
     box.innerHTML = '<div class="manual-add-item" style="color:var(--text-3);cursor:default;">\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</div>';
     box.style.display = 'block';
+    document.getElementById('manualAddFade').style.display = 'none';
     return;
   }
   box.innerHTML = matches.map(c =>
@@ -426,6 +428,16 @@ function filterManualAdd(){
     '</div>'
   ).join('');
   box.style.display = 'block';
+  box.scrollTop = 0;
+  updateManualAddFade();
+}
+
+function updateManualAddFade(){
+  const box = document.getElementById('manualAddResults');
+  const fade = document.getElementById('manualAddFade');
+  const nearBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 2;
+  const scrollable = box.scrollHeight > box.clientHeight;
+  fade.style.display = (scrollable && !nearBottom) ? 'block' : 'none';
 }
 
 function addManualItem(row){
@@ -434,6 +446,7 @@ function addManualItem(row){
   search.value = '';
   box.style.display = 'none';
   box.innerHTML = '';
+  document.getElementById('manualAddFade').style.display = 'none';
 
   const body = document.getElementById('resultsBody');
   const already = body.querySelector('input[data-id="' + row + '"]');
