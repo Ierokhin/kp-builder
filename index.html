@@ -90,6 +90,11 @@
   .badge.high{background:var(--green-bg);color:var(--green);}
   .badge.medium{background:var(--amber-bg);color:var(--amber);}
   .badge.low{background:var(--red-bg);color:var(--red);}
+  .badge.manual{background:var(--teal-bg);color:var(--teal);}
+  .manual-add-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);}
+  .manual-add-item:last-child{border-bottom:none;}
+  .manual-add-item:hover{background:var(--sidebar);}
+  .manual-add-item .deliv-block{display:block;}
   .badge.new{background:var(--purple-bg);color:var(--purple);}
   .reason{color:var(--text-2);font-size:12px;}
   .note{font-size:12px;color:var(--text-3);line-height:1.6;margin:16px 0 0;padding-top:14px;border-top:1px dashed var(--border);}
@@ -186,6 +191,13 @@
           <thead><tr><th></th><th>Услуга</th><th>Кол-во</th><th>Уверенность</th><th>Почему</th></tr></thead>
           <tbody id="resultsBody"></tbody>
         </table>
+
+        <div style="position:relative;margin:10px 0 4px;">
+          <input type="text" id="manualAddSearch" class="txt-input" placeholder="Если ИИ что-то пропустил — найдите услугу в каталоге и добавьте вручную..."
+            oninput="filterManualAdd()" onfocus="filterManualAdd()"
+            onblur="setTimeout(function(){document.getElementById('manualAddResults').style.display='none';},150)">
+          <div id="manualAddResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;max-height:240px;overflow-y:auto;border:1px solid var(--border-strong);border-radius:8px;margin-top:4px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);"></div>
+        </div>
 
         <div id="newItemsSection" style="display:none;">
           <div class="section-title"><i class="ti ti-sparkles" aria-hidden="true"></i>Новые позиции — вне каталога, оценено ИИ</div>
@@ -394,6 +406,55 @@ async function writeNewRows(){
   }catch(err){
     el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
   }
+}
+
+function filterManualAdd(){
+  const q = document.getElementById('manualAddSearch').value.trim().toLowerCase();
+  const box = document.getElementById('manualAddResults');
+  if(!q){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  const matches = LIVE_CATALOG.filter(c =>
+    (c.block + ' ' + c.task + ' ' + c.deliverable).toLowerCase().indexOf(q) !== -1
+  ).slice(0, 25);
+  if(!matches.length){
+    box.innerHTML = '<div class="manual-add-item" style="color:var(--text-3);cursor:default;">\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</div>';
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = matches.map(c =>
+    '<div class="manual-add-item" onmousedown="addManualItem(' + c.row + ')">' +
+      '<span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
+      '<span class="deliv-name">' + c.deliverable + '</span>' +
+    '</div>'
+  ).join('');
+  box.style.display = 'block';
+}
+
+function addManualItem(row){
+  const search = document.getElementById('manualAddSearch');
+  const box = document.getElementById('manualAddResults');
+  search.value = '';
+  box.style.display = 'none';
+  box.innerHTML = '';
+
+  const body = document.getElementById('resultsBody');
+  const already = body.querySelector('input[data-id="' + row + '"]');
+  if(already){ already.checked = true; return; }
+
+  const emptyRow = body.querySelector('.empty');
+  if(emptyRow) emptyRow.closest('tr').remove();
+
+  const c = LIVE_CATALOG.find(x => x.row === row);
+  if(!c) return;
+
+  const tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td><input type="checkbox" checked data-id="' + c.row + '"></td>' +
+    '<td><span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
+      '<span class="deliv-name">' + c.deliverable + '</span></td>' +
+    '<td><input class="qty-input" type="number" min="1" value="1" data-qty="' + c.row + '"></td>' +
+    '<td><span class="badge manual">\u0432\u0440\u0443\u0447\u043d\u0443\u044e</span></td>' +
+    '<td class="reason">\u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0432\u0440\u0443\u0447\u043d\u0443\u044e</td>';
+  body.appendChild(tr);
 }
 
 function renderResults(data){
