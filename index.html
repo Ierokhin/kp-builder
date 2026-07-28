@@ -186,18 +186,28 @@
       <div class="view" id="viewReview">
         <button class="link-back" onclick="goStep(1)">&larr; изменить транскрипт</button>
 
-        <div class="section-title"><i class="ti ti-check" aria-hidden="true"></i>Совпадения с каталогом</div>
+        <div class="section-title" style="justify-content:space-between;">
+          <span><i class="ti ti-check" aria-hidden="true"></i>Совпадения с каталогом</span>
+          <span style="display:flex;gap:14px;font-size:12px;font-weight:500;">
+            <a href="https://docs.google.com/spreadsheets/d/1kWFisYCWuth6P8WuD-JRXe3oDlrr-6IhrpvLfnUfm4k/edit" target="_blank">Открыть таблицу услуг &rarr;</a>
+            <button class="ghost" onclick="refreshCatalogPrices()" id="refreshPricesBtn">&#8635; Обновить цены</button>
+          </span>
+        </div>
         <table>
-          <thead><tr><th></th><th>Услуга</th><th>Кол-во</th><th>Уверенность</th><th>Почему</th></tr></thead>
+          <thead><tr><th></th><th>Услуга</th><th>Кол-во</th><th>Цена</th><th>Уверенность</th><th>Почему</th></tr></thead>
           <tbody id="resultsBody"></tbody>
         </table>
 
         <div style="position:relative;margin:10px 0 4px;">
           <input type="text" id="manualAddSearch" class="txt-input" placeholder="Если ИИ что-то пропустил — найдите услугу в каталоге и добавьте вручную..."
             oninput="filterManualAdd()" onfocus="filterManualAdd()"
-            onblur="setTimeout(function(){document.getElementById('manualAddResults').style.display='none';document.getElementById('manualAddFade').style.display='none';},150)">
-          <div id="manualAddResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:5;max-height:240px;overflow-y:auto;border:1px solid var(--border-strong);border-radius:8px;margin-top:4px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);" onscroll="updateManualAddFade()"></div>
-          <div id="manualAddFade" style="display:none;position:absolute;left:1px;right:1px;top:calc(100% + 4px + 240px - 29px);height:28px;background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.97));pointer-events:none;border-radius:0 0 7px 7px;z-index:6;"></div>
+            onblur="setTimeout(function(){document.getElementById('manualAddBox').style.display='none';},150)">
+          <div id="manualAddBox" style="display:none;position:absolute;left:0;right:0;z-index:5;">
+            <div style="position:relative;">
+              <div id="manualAddResults" style="max-height:240px;overflow-y:auto;border:1px solid var(--border-strong);border-radius:8px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.08);" onscroll="updateManualAddFade()"></div>
+              <div id="manualAddFade" style="display:none;position:absolute;left:1px;right:1px;bottom:0;height:28px;background:linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,.97));pointer-events:none;border-radius:0 0 7px 7px;"></div>
+            </div>
+          </div>
         </div>
 
         <div id="newItemsSection" style="display:none;">
@@ -400,24 +410,44 @@ async function writeNewRows(){
     el.textContent = '\u0414\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0441\u0442\u0440\u043e\u043a: ' + result.rows_added;
 
     if(result.inserted_rows && result.inserted_rows.length){
-      lastInsertedRows = result.inserted_rows;
-      const newTotals = await callApps({ action: 'get_totals', items: result.inserted_rows });
-      if(!newTotals.error){ newItemsTotals = newTotals; updateMetrics(); }
+      lastInsertedRows = lastInsertedRows.concat(result.inserted_rows); // дописываем, не затираем прошлые записи
     }
+
+    // чтобы повторный клик "Записать" не задвоил те же строки в таблице
+    payload.new_rows = [];
+    document.getElementById('payloadBox').textContent = JSON.stringify(payload, null, 2);
+
+    await refreshTotals();
   }catch(err){
     el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
   }
 }
 
+function positionManualAddDropdown(){
+  const input = document.getElementById('manualAddSearch');
+  const wrapBox = document.getElementById('manualAddBox');
+  const rect = input.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  if(spaceBelow < 260){
+    wrapBox.style.top = 'auto';
+    wrapBox.style.bottom = 'calc(100% + 4px)';
+  } else {
+    wrapBox.style.bottom = 'auto';
+    wrapBox.style.top = 'calc(100% + 4px)';
+  }
+}
+
 function filterManualAdd(){
   const q = document.getElementById('manualAddSearch').value.trim().toLowerCase();
+  const wrapBox = document.getElementById('manualAddBox');
   const box = document.getElementById('manualAddResults');
+  positionManualAddDropdown();
   const matches = q
     ? LIVE_CATALOG.filter(c => (c.block + ' ' + c.task + ' ' + c.deliverable).toLowerCase().indexOf(q) !== -1).slice(0, 25)
     : LIVE_CATALOG; // пусто в поиске — показываем весь каталог, чтобы можно было проскроллить
   if(!matches.length){
     box.innerHTML = '<div class="manual-add-item" style="color:var(--text-3);cursor:default;">\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</div>';
-    box.style.display = 'block';
+    wrapBox.style.display = 'block';
     document.getElementById('manualAddFade').style.display = 'none';
     return;
   }
@@ -427,7 +457,7 @@ function filterManualAdd(){
       '<span class="deliv-name">' + c.deliverable + '</span>' +
     '</div>'
   ).join('');
-  box.style.display = 'block';
+  wrapBox.style.display = 'block';
   box.scrollTop = 0;
   updateManualAddFade();
 }
@@ -444,13 +474,13 @@ function addManualItem(row){
   const search = document.getElementById('manualAddSearch');
   const box = document.getElementById('manualAddResults');
   search.value = '';
-  box.style.display = 'none';
+  document.getElementById('manualAddBox').style.display = 'none';
   box.innerHTML = '';
   document.getElementById('manualAddFade').style.display = 'none';
 
   const body = document.getElementById('resultsBody');
   const already = body.querySelector('input[data-id="' + row + '"]');
-  if(already){ already.checked = true; return; }
+  if(already){ already.checked = true; refreshTotals(); return; }
 
   const emptyRow = body.querySelector('.empty');
   if(emptyRow) emptyRow.closest('tr').remove();
@@ -464,9 +494,34 @@ function addManualItem(row){
     '<td><span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
       '<span class="deliv-name">' + c.deliverable + '</span></td>' +
     '<td><input class="qty-input" type="number" min="1" value="1" data-qty="' + c.row + '"></td>' +
+    '<td data-price-row="' + c.row + '">' + catalogPriceLabel(c) + '</td>' +
     '<td><span class="badge manual">\u0432\u0440\u0443\u0447\u043d\u0443\u044e</span></td>' +
     '<td class="reason">\u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0432\u0440\u0443\u0447\u043d\u0443\u044e</td>';
   body.appendChild(tr);
+  refreshTotals();
+}
+
+function catalogPriceLabel(c){
+  if(!c) return '\u2014';
+  const val = currentCurrency === 'USD' ? c.cost_usd : c.cost_eur;
+  const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
+  return val ? (symbol + Math.round(val).toLocaleString('ru-RU')) : '\u2014';
+}
+
+async function refreshCatalogPrices(){
+  const btn = document.getElementById('refreshPricesBtn');
+  const oldText = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = '\u2699 \u041e\u0431\u043d\u043e\u0432\u043b\u044f\u044e...';
+  await loadCatalog();
+  document.querySelectorAll('#resultsBody [data-price-row]').forEach(td => {
+    const row = parseInt(td.dataset.priceRow);
+    const c = LIVE_CATALOG.find(x => x.row === row);
+    td.textContent = catalogPriceLabel(c);
+  });
+  btn.disabled = false;
+  btn.innerHTML = oldText;
+  await refreshTotals();
 }
 
 function renderResults(data){
@@ -474,7 +529,7 @@ function renderResults(data){
   body.innerHTML = '';
   const items = data.matches;
   if(!items.length){
-    body.innerHTML = '<tr><td colspan="5" class="empty">\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u0441 \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u043e\u043c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="empty">\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u0441 \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u043e\u043c \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</td></tr>';
   } else {
     const byId = {};
     LIVE_CATALOG.forEach(c => byId[c.row] = c);
@@ -488,6 +543,7 @@ function renderResults(data){
         '<td><span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
           '<span class="deliv-name">' + c.deliverable + '</span></td>' +
         '<td><input class="qty-input" type="number" min="1" value="' + (item.qty||1) + '" data-qty="' + item.row + '"></td>' +
+        '<td data-price-row="' + item.row + '">' + catalogPriceLabel(c) + '</td>' +
         '<td><span class="badge ' + item.confidence + '">' + item.confidence + '</span></td>' +
         '<td class="reason">' + (item.reason||'') + '</td>';
       body.appendChild(tr);
@@ -527,11 +583,42 @@ function renderResults(data){
 }
 
 const EMPTY_ROLE_COSTS = { CD:0, AD:0, Designer:0, Copywriter:0, Illustrator:0, Motion:0, '3D':0, Other:0, Extra:0 };
-let existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
-let lastExistingItems = [];
+let currentTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
 let lastInsertedRows = [];
-let newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
 let currentCurrency = 'EUR';
+
+// Единый источник правды для "что сейчас одобрено" — и предпросмотр цены, и сама генерация
+// КП всегда смотрят сюда же, поэтому не могут разойтись между собой.
+function getApprovedItems(){
+  const items = [];
+  document.querySelectorAll('#resultsBody tr').forEach(tr => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    if(cb && cb.checked){
+      const row = parseInt(cb.dataset.id);
+      const qtyInput = tr.querySelector('input[data-qty]');
+      if(row){ items.push({ row: row, qty: parseInt(qtyInput.value)||1 }); }
+    }
+  });
+  return items.concat(lastInsertedRows);
+}
+
+async function refreshTotals(){
+  const items = getApprovedItems();
+  if(!items.length){
+    currentTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
+    updateMetrics();
+    return;
+  }
+  document.getElementById('metricPrice').textContent = 'считаю...';
+  document.getElementById('metricCostByRole').textContent = 'считаю...';
+  try{
+    const totals = await callApps({ action: 'get_totals', items: items });
+    if(!totals.error){ currentTotals = totals; }
+  }catch(err){
+    console.error(err);
+  }
+  updateMetrics();
+}
 
 function setCurrency(cur){
   currentCurrency = cur;
@@ -582,25 +669,7 @@ async function prepareSync(){
   goStep(3);
   saveCurrentState({ payload: payload });
 
-  // Реальная цена по уже существующим позициям каталога — читаем прямо из строк таблицы.
-  const items = existing_matches.map(m => ({ row: m.row, qty: m.qty })).filter(x => x.row);
-  lastExistingItems = items;
-  lastInsertedRows = []; // новые позиции ещё не записаны — сбрасываем до следующей записи
-  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
-  document.getElementById('metricPrice').textContent = 'считаю...';
-  document.getElementById('metricCostByRole').textContent = 'считаю...';
-  try{
-    const totals = await callApps({ action: 'get_totals', items: items });
-    if(!totals.error){
-      existingTotals = totals;
-      updateMetrics();
-    }
-  }catch(err){
-    console.error(err);
-  }
-  if(!new_rows.length){
-    document.getElementById('metricPrice').textContent += ' (новых позиций нет)';
-  }
+  await refreshTotals(); // пересчитывает и уже одобренные существующие, и ранее записанные новые позиции разом
 }
 
 function buildRoleGridHtml(roleCosts){
@@ -612,35 +681,16 @@ function buildRoleGridHtml(roleCosts){
 }
 
 function updateMetrics(){
-  const priceEur = (existingTotals.price_eur||0) + (newItemsTotals.price_eur||0);
-  const priceUsd = (existingTotals.price_usd||0) + (newItemsTotals.price_usd||0);
-  const price = currentCurrency === 'USD' ? priceUsd : priceEur;
+  const price = currentCurrency === 'USD' ? (currentTotals.price_usd||0) : (currentTotals.price_eur||0);
   const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
   document.getElementById('metricPrice').textContent = symbol + price.toLocaleString('ru-RU');
-
-  const roleA = existingTotals.contractor_cost_by_role || EMPTY_ROLE_COSTS;
-  const roleB = newItemsTotals.contractor_cost_by_role || EMPTY_ROLE_COSTS;
-  const combined = {};
-  ROLE_KEYS.forEach(k => { combined[k] = (roleA[k]||0) + (roleB[k]||0); });
-  document.getElementById('metricCostByRole').innerHTML = buildRoleGridHtml(combined);
+  document.getElementById('metricCostByRole').innerHTML = buildRoleGridHtml(currentTotals.contractor_cost_by_role);
 }
 
 async function generateKP(){
   const el = document.getElementById('kpStatus');
 
-  // Пересчитываем отмеченные каталожные позиции напрямую с экрана — не полагаемся
-  // на переменную, заполненную предыдущим шагом, чтобы не зависеть от таймингов.
-  const existingItems = [];
-  document.querySelectorAll('#resultsBody tr').forEach(tr => {
-    const cb = tr.querySelector('input[type=checkbox]');
-    if(cb && cb.checked){
-      const row = parseInt(cb.dataset.id);
-      const qtyInput = tr.querySelector('input[data-qty]');
-      if(row){ existingItems.push({ row: row, qty: parseInt(qtyInput.value)||1 }); }
-    }
-  });
-
-  const allItems = existingItems.concat(lastInsertedRows);
+  const allItems = getApprovedItems();
   if(!allItems.length){ el.textContent = '\u041d\u0435\u0442 \u043e\u0434\u043e\u0431\u0440\u0435\u043d\u043d\u044b\u0445 \u043f\u043e\u0437\u0438\u0446\u0438\u0439 \u2014 \u043e\u0442\u043c\u0435\u0442\u044c\u0442\u0435 \u0443\u0441\u043b\u0443\u0433\u0438 \u043d\u0430 \u0448\u0430\u0433\u0435 2'; return; }
   el.innerHTML = '<span class="spinner"></span>\u0421\u043e\u0431\u0438\u0440\u0430\u044e \u043f\u0440\u0435\u0437\u0435\u043d\u0442\u0430\u0446\u0438\u044e...';
   try{
@@ -798,9 +848,7 @@ function selectProject(id){
   document.getElementById('transcript').value = state.transcript || '';
   lastData = { matches: state.matches || [], new_items: state.new_items || [] };
   if(state.matches || state.new_items){ renderResults(lastData); }
-  existingTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
-  newItemsTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
-  lastExistingItems = [];
+  currentTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
   lastInsertedRows = [];
   currentCurrency = state.currency || 'EUR';
   document.getElementById('currBtnEUR').classList.toggle('active', currentCurrency === 'EUR');
