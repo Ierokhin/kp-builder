@@ -922,14 +922,15 @@ async function removeProject(){
 
 async function saveCurrentState(extra){
   if(!currentProjectId) return;
-  const state = Object.assign({
+  const p = projects.find(x => x.id === currentProjectId);
+  const prevState = (p && p.state) || {};
+  const state = Object.assign({}, prevState, {
     transcript: document.getElementById('transcript').value,
     matches: lastData.matches,
     new_items: lastData.new_items,
     step: currentStep,
     currency: currentCurrency
   }, extra || {});
-  const p = projects.find(x => x.id === currentProjectId);
   if(p) p.state = state;
   await callApps({ action: 'update_project', id: currentProjectId, state: state });
 }
