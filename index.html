@@ -629,7 +629,7 @@ async function setCurrency(cur){
   document.getElementById('currBtnEUR').classList.toggle('active', cur === 'EUR');
   document.getElementById('currBtnUSD').classList.toggle('active', cur === 'USD');
   updateMetrics();
-  await saveCurrentState();
+  try{ await saveCurrentState(); }catch(err){ console.error('save failed:', err); }
 }
 
 async function prepareSync(){
@@ -671,7 +671,11 @@ async function prepareSync(){
   const payload = { existing_matches: existing_matches, new_rows: new_rows };
   document.getElementById('payloadBox').textContent = JSON.stringify(payload, null, 2);
   goStep(3);
-  await saveCurrentState({ payload: payload });
+  try{
+    await saveCurrentState({ payload: payload });
+  }catch(err){
+    document.getElementById('reviewStatus').textContent = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c: ' + err.message;
+  }
 
   await refreshTotals(); // пересчитывает и уже одобренные существующие, и ранее записанные новые позиции разом
 }
@@ -754,13 +758,19 @@ async function verifyAndConfirmSave(){
 async function retrySaveNow(){
   const p = projects.find(x => x.id === currentProjectId);
   const st = (p && p.state) || {};
-  await saveCurrentState({
-    kp_url: document.getElementById('headerKpLink').href,
-    kp_file_id: st.kp_file_id,
-    kp_total_label: document.getElementById('kpFinalPrice').textContent,
-    kp_role_costs_html: document.getElementById('kpFinalCostByRole').innerHTML,
-    step: 4
-  });
+  try{
+    await saveCurrentState({
+      kp_url: document.getElementById('headerKpLink').href,
+      kp_file_id: st.kp_file_id,
+      kp_total_label: document.getElementById('kpFinalPrice').textContent,
+      kp_role_costs_html: document.getElementById('kpFinalCostByRole').innerHTML,
+      step: 4
+    });
+  }catch(err){
+    document.getElementById('kpSaveStatus').textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
+    document.getElementById('kpSaveStatus').style.color = 'var(--red)';
+    return;
+  }
   verifyAndConfirmSave();
 }
 
@@ -984,7 +994,12 @@ async function saveCurrentState(extra){
     currency: currentCurrency
   }, extra || {});
   if(p) p.state = state;
-  await callApps({ action: 'update_project', id: currentProjectId, state: state });
+  const result = await callApps({ action: 'update_project', id: currentProjectId, state: state });
+  if(result && result.error){
+    console.error('saveCurrentState failed:', result.error);
+    throw new Error(result.error);
+  }
+  return result;
 }
 </script>
 </body>
