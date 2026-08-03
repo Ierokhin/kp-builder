@@ -175,7 +175,7 @@
 
       <div class="view shown" id="viewInput">
         <label for="transcript">Транскрипт звонка</label>
-        <textarea id="transcript" rows="9" placeholder="Вставьте текст расшифровки звонка с клиентом..." onblur="saveCurrentState()"></textarea>
+        <textarea id="transcript" rows="9" placeholder="Вставьте текст расшифровки звонка с клиентом..."></textarea>
         <div class="row">
           <button class="primary" id="extractBtn" onclick="extract()">Извлечь услуги</button>
           <button class="ghost" onclick="loadSample()">Вставить пример транскрипта</button>
@@ -924,10 +924,12 @@ async function saveCurrentState(extra){
   if(!currentProjectId) return;
   const p = projects.find(x => x.id === currentProjectId);
   const prevState = (p && p.state) || {};
+  const domTranscript = document.getElementById('transcript').value;
   const state = Object.assign({}, prevState, {
-    transcript: document.getElementById('transcript').value,
-    matches: lastData.matches,
-    new_items: lastData.new_items,
+    // пустое значение не должно затирать уже сохранённые данные (защита от гонки при быстром переключении проектов)
+    transcript: domTranscript || prevState.transcript || '',
+    matches: (lastData.matches && lastData.matches.length) ? lastData.matches : (prevState.matches || []),
+    new_items: (lastData.new_items && lastData.new_items.length) ? lastData.new_items : (prevState.new_items || []),
     step: currentStep,
     currency: currentCurrency
   }, extra || {});
