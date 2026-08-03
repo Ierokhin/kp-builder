@@ -387,7 +387,7 @@ async function extract(){
     renderResults(lastData);
     status.textContent = '';
     goStep(2);
-    saveCurrentState();
+    await saveCurrentState();
   }catch(err){
     console.error(err);
     status.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
@@ -620,12 +620,12 @@ async function refreshTotals(){
   updateMetrics();
 }
 
-function setCurrency(cur){
+async function setCurrency(cur){
   currentCurrency = cur;
   document.getElementById('currBtnEUR').classList.toggle('active', cur === 'EUR');
   document.getElementById('currBtnUSD').classList.toggle('active', cur === 'USD');
   updateMetrics();
-  saveCurrentState();
+  await saveCurrentState();
 }
 
 async function prepareSync(){
@@ -667,7 +667,7 @@ async function prepareSync(){
   const payload = { existing_matches: existing_matches, new_rows: new_rows };
   document.getElementById('payloadBox').textContent = JSON.stringify(payload, null, 2);
   goStep(3);
-  saveCurrentState({ payload: payload });
+  await saveCurrentState({ payload: payload });
 
   await refreshTotals(); // пересчитывает и уже одобренные существующие, и ранее записанные новые позиции разом
 }
@@ -705,10 +705,13 @@ async function generateKP(){
     if(result.error){ throw new Error(result.error); }
     const symbol = result.currency === 'USD' ? '$' : '\u20ac';
     const roleHtml = buildRoleGridHtml(result.contractor_cost_by_role);
-    el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + symbol + result.total.toLocaleString('ru-RU') + ')';
-    applyKpResult(result.url, symbol + result.total.toLocaleString('ru-RU'), roleHtml);
+    const totalLabel = symbol + result.total.toLocaleString('ru-RU');
     goStep(4);
-    saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: symbol + result.total.toLocaleString('ru-RU'), kp_role_costs_html: roleHtml });
+    // Сохраняем ДО того, как показать «готово» — чтобы если пользователь сразу обновит страницу,
+    // сохранение уже гарантированно завершилось, а не летело в фоне.
+    await saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: totalLabel, kp_role_costs_html: roleHtml });
+    applyKpResult(result.url, totalLabel, roleHtml);
+    el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + totalLabel + ')';
   }catch(err){
     el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
   }
