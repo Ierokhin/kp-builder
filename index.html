@@ -271,6 +271,10 @@
           <p>Себестоимость подрядчикам (EUR), по ролям</p>
           <div id="kpFinalCostByRole" class="role-cost-grid">&mdash;</div>
         </div>
+        <div class="row" style="justify-content:center;margin-top:16px;">
+          <button class="primary" onclick="verifyAndConfirmSave()">Проверить сохранение</button>
+          <span id="kpSaveStatus" style="font-size:12px;"></span>
+        </div>
       </div>
       </div>
 
@@ -712,9 +716,52 @@ async function generateKP(){
     await saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: totalLabel, kp_role_costs_html: roleHtml });
     applyKpResult(result.url, totalLabel, roleHtml);
     el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + totalLabel + ')';
+    verifyAndConfirmSave(); // сразу же перепроверяем, что реально долетело до таблицы, не дожидаясь клика
   }catch(err){
     el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430: ' + err.message;
   }
+}
+
+async function verifyAndConfirmSave(){
+  const el = document.getElementById('kpSaveStatus');
+  el.style.color = 'var(--text-3)';
+  el.innerHTML = '<span class="spinner"></span>\u041f\u0440\u043e\u0432\u0435\u0440\u044f\u044e...';
+  try{
+    const result = await callApps({ action: 'list_projects' });
+    if(result.error){ throw new Error(result.error); }
+    const fresh = (result.projects || []).find(p => p.id === currentProjectId);
+    if(!fresh){
+      el.textContent = '\u26a0 \u041f\u0440\u043e\u0435\u043a\u0442 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d \u043d\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435';
+      el.style.color = 'var(--red)';
+      return;
+    }
+    const fs = fresh.state || {};
+    if(fs.kp_url && Number(fs.step) === 4){
+      el.textContent = '\u2713 \u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u043e \u2014 \u0432 \u0442\u0430\u0431\u043b\u0438\u0446\u0435 \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u0432 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u043e \u043a\u0430\u043a \u0441\u043b\u0435\u0434\u0443\u0435\u0442';
+      el.style.color = 'var(--green)';
+      const p = projects.find(x => x.id === currentProjectId);
+      if(p) p.state = fs; // подтягиваем то, что реально лежит на сервере, в локальный кэш
+    } else {
+      el.innerHTML = '\u26a0 \u0412 \u0442\u0430\u0431\u043b\u0438\u0446\u0435 \u043f\u0440\u043e\u0435\u043a\u0442\u043e\u0432 \u044d\u0442\u043e\u0433\u043e \u043d\u0435 \u0432\u0438\u0434\u043d\u043e. <button class="ghost" onclick="retrySaveNow()">\u041f\u043e\u043f\u0440\u043e\u0431\u043e\u0432\u0430\u0442\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0441\u043d\u043e\u0432\u0430</button>';
+      el.style.color = 'var(--red)';
+    }
+  }catch(err){
+    el.textContent = '\u041e\u0448\u0438\u0431\u043a\u0430 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438: ' + err.message;
+    el.style.color = 'var(--red)';
+  }
+}
+
+async function retrySaveNow(){
+  const p = projects.find(x => x.id === currentProjectId);
+  const st = (p && p.state) || {};
+  await saveCurrentState({
+    kp_url: document.getElementById('headerKpLink').href,
+    kp_file_id: st.kp_file_id,
+    kp_total_label: document.getElementById('kpFinalPrice').textContent,
+    kp_role_costs_html: document.getElementById('kpFinalCostByRole').innerHTML,
+    step: 4
+  });
+  verifyAndConfirmSave();
 }
 
 function applyKpResult(url, totalLabel, roleHtml){
