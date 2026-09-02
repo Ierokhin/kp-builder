@@ -746,8 +746,8 @@ async function generateKP(){
     goStep(4);
     // Сохраняем ДО того, как показать «готово» — чтобы если пользователь сразу обновит страницу,
     // сохранение уже гарантированно завершилось, а не летело в фоне.
-    await saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: totalLabel, kp_role_costs_html: roleHtml, kp_items_html: buildKpItemsHtml() });
-    const itemsHtml = buildKpItemsHtml();
+    await saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: totalLabel, kp_role_costs_html: roleHtml, kp_items: allItems, kp_items_html: buildKpItemsHtml(allItems) });
+    const itemsHtml = buildKpItemsHtml(allItems);
     applyKpResult(result.url, totalLabel, roleHtml, itemsHtml);
     el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + totalLabel + ')';
     verifyAndConfirmSave(); // сразу же перепроверяем, что реально долетело до таблицы, не дожидаясь клика
@@ -810,8 +810,8 @@ async function retrySaveNow(){
   verifyAndConfirmSave();
 }
 
-function buildKpItemsHtml(){
-  const items = getApprovedItems();
+function buildKpItemsHtml(itemsArg){
+  const items = itemsArg || getApprovedItems();
   const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
   const rows = items.map(it => {
     const c = LIVE_CATALOG.find(x => x.row === it.row);
@@ -975,7 +975,10 @@ function selectProject(id){
 
   const headerLink = document.getElementById('headerKpLink');
   if(state.kp_url){
-    applyKpResult(state.kp_url, state.kp_total_label || '', state.kp_role_costs_html || '', state.kp_items_html || '');
+    const restoredItemsHtml = (state.kp_items && state.kp_items.length)
+      ? buildKpItemsHtml(state.kp_items)   // пересобираем в текущей валюте из сохранённого списка
+      : (state.kp_items_html || '');       // запасной вариант для КП, созданных до этого обновления
+    applyKpResult(state.kp_url, state.kp_total_label || '', state.kp_role_costs_html || '', restoredItemsHtml);
   } else {
     headerLink.style.display = 'none';
     document.getElementById('kpFinalPrice').textContent = '\u2014';
