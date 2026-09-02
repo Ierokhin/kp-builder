@@ -188,7 +188,11 @@
 
         <div class="section-title" style="justify-content:space-between;">
           <span><i class="ti ti-check" aria-hidden="true"></i>Совпадения с каталогом</span>
-          <span style="display:flex;gap:14px;font-size:12px;font-weight:500;">
+          <span style="display:flex;gap:14px;font-size:12px;font-weight:500;align-items:center;">
+            <span style="display:flex;gap:4px;">
+              <button id="currBtnEUR2" class="curr-btn active" onclick="setCurrency('EUR')">EUR €</button>
+              <button id="currBtnUSD2" class="curr-btn" onclick="setCurrency('USD')">USD $</button>
+            </span>
             <a href="https://docs.google.com/spreadsheets/d/1kWFisYCWuth6P8WuD-JRXe3oDlrr-6IhrpvLfnUfm4k/edit" target="_blank">Открыть таблицу услуг &rarr;</a>
             <button class="ghost" onclick="refreshCatalogPrices()" id="refreshPricesBtn">&#8635; Обновить цены</button>
           </span>
@@ -266,6 +270,13 @@
         </div>
         <div class="metrics" style="justify-content:center;">
           <div class="metric"><p>Итоговая цена клиенту</p><p id="kpFinalPrice">&mdash;</p></div>
+        </div>
+        <div class="metric" style="margin-top:10px;">
+          <p>Позиции в КП</p>
+          <table style="margin-top:6px;">
+            <thead><tr><th>Услуга</th><th style="width:60px;">Кол-во</th><th style="width:110px;">Цена</th></tr></thead>
+            <tbody id="kpFinalItems"></tbody>
+          </table>
         </div>
         <div class="metric" style="margin-top:10px;">
           <p>Себестоимость подрядчикам (EUR), по ролям</p>
@@ -497,19 +508,40 @@ function addManualItem(row){
     '<td><input type="checkbox" checked data-id="' + c.row + '"></td>' +
     '<td><span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
       '<span class="deliv-name">' + c.deliverable + '</span></td>' +
-    '<td><input class="qty-input" type="number" min="1" value="1" data-qty="' + c.row + '"></td>' +
-    '<td data-price-row="' + c.row + '">' + catalogPriceLabel(c) + '</td>' +
+    '<td><input class="qty-input" type="number" min="1" value="1" data-qty="' + c.row + '" onchange="onQtyChanged()"></td>' +
+    '<td data-price-row="' + c.row + '">' + catalogPriceLabel(c, 1) + '</td>' +
     '<td><span class="badge manual">\u0432\u0440\u0443\u0447\u043d\u0443\u044e</span></td>' +
     '<td class="reason">\u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e \u0432\u0440\u0443\u0447\u043d\u0443\u044e</td>';
   body.appendChild(tr);
   refreshTotals();
 }
 
-function catalogPriceLabel(c){
+function catalogPriceLabel(c, qty){
   if(!c) return '\u2014';
-  const val = currentCurrency === 'USD' ? c.cost_usd : c.cost_eur;
+  const unit = currentCurrency === 'USD' ? c.cost_usd : c.cost_eur;
   const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
-  return val ? (symbol + Math.round(val).toLocaleString('ru-RU')) : '\u2014';
+  if(!unit) return '\u2014';
+  const q = qty || 1;
+  const total = Math.round(unit * q);
+  const base = symbol + total.toLocaleString('ru-RU');
+  return q > 1 ? (base + ' <span style="color:var(--text-3);font-size:11px;">(' + q + ' \u00d7 ' + symbol + Math.round(unit).toLocaleString('ru-RU') + ')</span>') : base;
+}
+
+// Пересчитывает подписи цен во всех строках по текущей валюте и количеству
+function refreshRowPrices(){
+  document.querySelectorAll('#resultsBody [data-price-row]').forEach(td => {
+    const row = parseInt(td.dataset.priceRow);
+    const c = LIVE_CATALOG.find(x => x.row === row);
+    const qtyInput = td.closest('tr').querySelector('input[data-qty]');
+    const q = qtyInput ? (parseInt(qtyInput.value)||1) : 1;
+    td.innerHTML = catalogPriceLabel(c, q);
+  });
+}
+
+// Вызывается при изменении количества в строке
+async function onQtyChanged(){
+  refreshRowPrices();
+  await refreshTotals();
 }
 
 async function refreshCatalogPrices(){
@@ -518,11 +550,7 @@ async function refreshCatalogPrices(){
   btn.disabled = true;
   btn.textContent = '\u2699 \u041e\u0431\u043d\u043e\u0432\u043b\u044f\u044e...';
   await loadCatalog();
-  document.querySelectorAll('#resultsBody [data-price-row]').forEach(td => {
-    const row = parseInt(td.dataset.priceRow);
-    const c = LIVE_CATALOG.find(x => x.row === row);
-    td.textContent = catalogPriceLabel(c);
-  });
+  refreshRowPrices();
   btn.disabled = false;
   btn.innerHTML = oldText;
   await refreshTotals();
@@ -546,8 +574,8 @@ function renderResults(data){
         '<td><input type="checkbox" ' + checked + ' data-id="' + item.row + '"></td>' +
         '<td><span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
           '<span class="deliv-name">' + c.deliverable + '</span></td>' +
-        '<td><input class="qty-input" type="number" min="1" value="' + (item.qty||1) + '" data-qty="' + item.row + '"></td>' +
-        '<td data-price-row="' + item.row + '">' + catalogPriceLabel(c) + '</td>' +
+        '<td><input class="qty-input" type="number" min="1" value="' + (item.qty||1) + '" data-qty="' + item.row + '" onchange="onQtyChanged()"></td>' +
+        '<td data-price-row="' + item.row + '">' + catalogPriceLabel(c, item.qty||1) + '</td>' +
         '<td><span class="badge ' + item.confidence + '">' + item.confidence + '</span></td>' +
         '<td class="reason">' + (item.reason||'') + '</td>';
       body.appendChild(tr);
@@ -626,8 +654,9 @@ async function refreshTotals(){
 
 async function setCurrency(cur){
   currentCurrency = cur;
-  document.getElementById('currBtnEUR').classList.toggle('active', cur === 'EUR');
-  document.getElementById('currBtnUSD').classList.toggle('active', cur === 'USD');
+  ['currBtnEUR','currBtnEUR2'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.toggle('active', cur === 'EUR'); });
+  ['currBtnUSD','currBtnUSD2'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.toggle('active', cur === 'USD'); });
+  refreshRowPrices();
   updateMetrics();
   try{ await saveCurrentState(); }catch(err){ console.error('save failed:', err); }
 }
@@ -717,8 +746,9 @@ async function generateKP(){
     goStep(4);
     // Сохраняем ДО того, как показать «готово» — чтобы если пользователь сразу обновит страницу,
     // сохранение уже гарантированно завершилось, а не летело в фоне.
-    await saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: totalLabel, kp_role_costs_html: roleHtml });
-    applyKpResult(result.url, totalLabel, roleHtml);
+    await saveCurrentState({ kp_url: result.url, kp_file_id: result.file_id, kp_total_label: totalLabel, kp_role_costs_html: roleHtml, kp_items_html: buildKpItemsHtml() });
+    const itemsHtml = buildKpItemsHtml();
+    applyKpResult(result.url, totalLabel, roleHtml, itemsHtml);
     el.innerHTML = '<a href="' + result.url + '" target="_blank">\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u041a\u041f \u2192</a> (\u0432\u0441\u0435\u0433\u043e ' + totalLabel + ')';
     verifyAndConfirmSave(); // сразу же перепроверяем, что реально долетело до таблицы, не дожидаясь клика
   }catch(err){
@@ -780,12 +810,32 @@ async function retrySaveNow(){
   verifyAndConfirmSave();
 }
 
-function applyKpResult(url, totalLabel, roleHtml){
+function buildKpItemsHtml(){
+  const items = getApprovedItems();
+  const symbol = currentCurrency === 'USD' ? '$' : '\u20ac';
+  const rows = items.map(it => {
+    const c = LIVE_CATALOG.find(x => x.row === it.row);
+    if(!c) return '';
+    const unit = currentCurrency === 'USD' ? c.cost_usd : c.cost_eur;
+    const total = Math.round((unit||0) * (it.qty||1));
+    return '<tr>' +
+      '<td><span class="deliv-block">' + c.block + ' \u203a ' + c.task + '</span>' +
+        '<span class="deliv-name">' + c.deliverable + '</span></td>' +
+      '<td>' + (it.qty||1) + '</td>' +
+      '<td>' + symbol + total.toLocaleString('ru-RU') + '</td>' +
+    '</tr>';
+  }).filter(Boolean).join('');
+  return rows || '<tr><td colspan="3" class="empty">\u041d\u0435\u0442 \u043f\u043e\u0437\u0438\u0446\u0438\u0439</td></tr>';
+}
+
+function applyKpResult(url, totalLabel, roleHtml, itemsHtml){
   const headerLink = document.getElementById('headerKpLink');
   headerLink.href = url;
   headerLink.style.display = 'inline-flex';
 
   document.getElementById('kpFinalPrice').textContent = totalLabel && totalLabel.trim() ? totalLabel : '\u2014';
+
+  document.getElementById('kpFinalItems').innerHTML = itemsHtml || '<tr><td colspan="3" class="empty">\u2014</td></tr>';
 
   const roleGrid = document.getElementById('kpFinalCostByRole');
   const looksLikePlaceholder = !roleHtml || !roleHtml.trim() ||
@@ -917,15 +967,15 @@ function selectProject(id){
   currentTotals = { price_eur: 0, price_usd: 0, contractor_cost_eur: 0, contractor_cost_by_role: Object.assign({}, EMPTY_ROLE_COSTS) };
   lastInsertedRows = [];
   currentCurrency = state.currency || 'EUR';
-  document.getElementById('currBtnEUR').classList.toggle('active', currentCurrency === 'EUR');
-  document.getElementById('currBtnUSD').classList.toggle('active', currentCurrency === 'USD');
+  ['currBtnEUR','currBtnEUR2'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.toggle('active', currentCurrency === 'EUR'); });
+  ['currBtnUSD','currBtnUSD2'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.toggle('active', currentCurrency === 'USD'); });
   document.getElementById('metricPrice').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
   document.getElementById('metricCostByRole').textContent = '\u2014 \u043f\u043e\u0441\u043b\u0435 \u0441\u0438\u043d\u0445\u0440\u043e\u043d\u0438\u0437\u0430\u0446\u0438\u0438';
   if(state.payload){ document.getElementById('payloadBox').textContent = JSON.stringify(state.payload, null, 2); }
 
   const headerLink = document.getElementById('headerKpLink');
   if(state.kp_url){
-    applyKpResult(state.kp_url, state.kp_total_label || '', state.kp_role_costs_html || '');
+    applyKpResult(state.kp_url, state.kp_total_label || '', state.kp_role_costs_html || '', state.kp_items_html || '');
   } else {
     headerLink.style.display = 'none';
     document.getElementById('kpFinalPrice').textContent = '\u2014';
