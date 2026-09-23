@@ -399,6 +399,9 @@ async function extract(){
     const parsed = await callApps({ action: "chat", system: systemPrompt(), message: text });
     if(parsed.error){ throw new Error(parsed.error + (parsed.details ? (' \u2014 ' + parsed.details) : '')); }
     lastData = { matches: parsed.matches||[], new_items: parsed.new_items||[] };
+    // Начинаем разбор заново — прошлые «только что записанные» позиции больше не актуальны:
+    // те, что реально нужны, теперь придут как обычные совпадения с каталогом.
+    lastInsertedRows = [];
     renderResults(lastData);
     status.textContent = '';
     goStep(2);
@@ -622,16 +625,21 @@ let currentCurrency = 'EUR';
 // Единый источник правды для "что сейчас одобрено" — и предпросмотр цены, и сама генерация
 // КП всегда смотрят сюда же, поэтому не могут разойтись между собой.
 function getApprovedItems(){
-  const items = [];
+  const byRow = {};
   document.querySelectorAll('#resultsBody tr').forEach(tr => {
     const cb = tr.querySelector('input[type=checkbox]');
     if(cb && cb.checked){
       const row = parseInt(cb.dataset.id);
       const qtyInput = tr.querySelector('input[data-qty]');
-      if(row){ items.push({ row: row, qty: parseInt(qtyInput.value)||1 }); }
+      if(row){ byRow[row] = { row: row, qty: parseInt(qtyInput.value)||1 }; }
     }
   });
-  return items.concat(lastInsertedRows);
+  // Ранее записанные новые позиции уже могли попасть в каталог и отметиться галочкой выше —
+  // ключ по номеру строки не даёт посчитать одну и ту же услугу дважды.
+  lastInsertedRows.forEach(it => {
+    if(it && it.row && !byRow[it.row]){ byRow[it.row] = { row: it.row, qty: it.qty || 1 }; }
+  });
+  return Object.keys(byRow).map(k => byRow[k]);
 }
 
 async function refreshTotals(){
