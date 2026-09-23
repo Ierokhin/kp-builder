@@ -113,10 +113,10 @@
   .role-cost-grid .rc-item span:first-child{color:var(--text-3);}
   .role-cost-grid .rc-item span:last-child{font-weight:600;}
   .section-title{font-size:13px;font-weight:600;margin:22px 0 10px;display:flex;align-items:center;gap:8px;}
-  .pct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px;}
+  .pct-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:6px;}
   .pct-cell{display:flex;align-items:center;gap:4px;}
-  .pct-cell span{font-size:10px;color:var(--text-3);width:62px;flex-shrink:0;}
-  .pct-cell input{width:38px;border:1px solid var(--border-strong);border-radius:5px;padding:3px 4px;font-size:11px;font-family:inherit;}
+  .pct-cell span{font-size:10px;color:var(--text-3);width:52px;flex-shrink:0;}
+  .pct-cell input{width:34px;border:1px solid var(--border-strong);border-radius:5px;padding:2px 3px;font-size:11px;font-family:inherit;}
   .new-row{background:var(--purple-bg);}
 </style>
 </head>
@@ -217,7 +217,7 @@
         <div id="newItemsSection" style="display:none;">
           <div class="section-title"><i class="ti ti-sparkles" aria-hidden="true"></i>Новые позиции — вне каталога, оценено ИИ</div>
           <table>
-            <thead><tr><th></th><th>Блок / Задача / Услуга</th><th>Кол-во</th><th>Часы</th><th>Раскладка по ролям, %</th></tr></thead>
+            <thead><tr><th style="width:28px;"></th><th>Блок / Задача / Услуга</th><th style="width:56px;">Кол-во</th><th style="width:56px;">Часы</th><th style="width:230px;">Раскладка по ролям, %</th></tr></thead>
             <tbody id="newItemsBody"></tbody>
           </table>
         </div>
@@ -350,8 +350,9 @@ function systemPrompt(){
   const p8 = "В new_items попадают только услуги, которых ДЕЙСТВИТЕЛЬНО НЕТ в каталоге ни по смыслу, ни по тексту. deliverable — короткое чистое название услуги (как в каталоге), БЕЗ обоснования и БЕЗ пояснений «почему» внутри самого названия — эти детали идут только в поле reason. task — короткая переиспользуемая категория в стиле уже существующих в каталоге (например 'Packaging', 'Social Media', 'Corporate', 'Website'), НЕ повторение/пересказ названия deliverable. ВАЖНО: task выбирай по СМЫСЛУ самой услуги — куда она относится по назначению, а НЕ копируй task у той позиции из PRICED, которую взял как ценовой аналог. Аналог из PRICED нужен ТОЛЬКО для оценки hours и pct, категорию он не задаёт. Например: рендеры и визуалы для сайта (product render, product tile image, web visuals) — это task='Website', даже если по часам ты опирался на 'Master Layout Development (3D Included)' из Packaging. block — ТОЛЬКО одно из двух значений ровно как в каталоге: 'BRANDING EXECUTION' или 'BRANDED MATERIALS' (или 'Marketing' для задач с task='Marketing') — НИКОГДА не склеивай блок и задачу вместе (НЕПРАВИЛЬНО: 'BRANDED MATERIALS › Packaging', ПРАВИЛЬНО: block='BRANDED MATERIALS', task='Packaging' раздельно). hours оценивай по аналогии с похожими позициями из PRICED (не выдумывай цифры с нуля — бери близкую по сложности позицию и её часы как ориентир). ";
   const p9 = "pct — 9 чисел (проценты занятости ролей), не выдумывай их без опоры на похожие позиции; сумма обычно 95-100. Не указывай qty и cost — они не нужны, количество по умолчанию 1, стоимость считает формула таблицы по часам. ";
   const p10 = "Если клиент явно отказался от блока услуг — не включай его.\n\n";
+  const p10b = "МАСТЕР-МАКЕТ И АДАПТАЦИИ (важное правило ценообразования): если в транскрипте просят один дизайн в НЕСКОЛЬКИХ размерах/форматах/вариациях (например \"упаковка в 3 размерах: 24x36, 36x48, 72x48\" или \"бумажные пакеты 3 размера\"), это НЕ N полноценных дизайнов. Разбивай на ДВЕ отдельные позиции: (1) основной дизайн/мастер-макет с qty=1, и (2) отдельную позицию адаптации с qty = (N-1), то есть на одну меньше общего числа размеров, потому что первый размер уже входит в мастер-макет. Для адаптаций сначала ищи подходящую строку в КАТАЛОГЕ (например 'Packaging Adaptation (1 format)') и используй её как match с нужным qty; создавай новую позицию адаптации только если в каталоге ничего подходящего нет. Цена/часы адаптации считаются ЗА ОДНУ ЕДИНИЦУ — количество умножит таблица сама, не закладывай умножение в hours. Пример: \"whiteboard упаковка, адаптация под 3 размера\" => позиция 1: task='Packaging', deliverable='Whiteboard box packaging (master layout)', qty=1; позиция 2: адаптация упаковки, qty=2.\n\n";
   const p11 = "КАТАЛОГ:\n" + buildCatalogText() + "\n\nPRICED (аналоги для новых позиций, часы + раскладка по ролям):\n" + buildPricedText();
-  return p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p11;
+  return p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9 + p10 + p10b + p11;
 }
 
 const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/brandon-archibald.com/s/AKfycbwA8MC5AoNdc9CpOYU352JktAWLdMF6Zt7zZjBwMyLXeZEh60x-olnRfr3ePQR1GTkP/exec';
