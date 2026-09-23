@@ -86,6 +86,7 @@
   .qty-input{width:44px;border:1px solid var(--border-strong);border-radius:6px;padding:5px 6px;font-size:13px;font-family:inherit;}
   .cost-input{width:70px;border:1px solid var(--border-strong);border-radius:6px;padding:5px 6px;font-size:13px;font-family:inherit;}
   .txt-input{width:100%;border:1px solid var(--border-strong);border-radius:6px;padding:5px 6px;font-size:12.5px;font-family:inherit;margin-bottom:4px;}
+  .txt-input-multi{resize:vertical;line-height:1.45;min-height:44px;}
   .badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;}
   .badge.high{background:var(--green-bg);color:var(--green);}
   .badge.medium{background:var(--amber-bg);color:var(--amber);}
@@ -216,8 +217,8 @@
 
         <div id="newItemsSection" style="display:none;">
           <div class="section-title"><i class="ti ti-sparkles" aria-hidden="true"></i>Новые позиции — вне каталога, оценено ИИ</div>
-          <table>
-            <thead><tr><th style="width:28px;"></th><th>Блок / Задача / Услуга</th><th style="width:56px;">Кол-во</th><th style="width:56px;">Часы</th><th style="width:230px;">Раскладка по ролям, %</th></tr></thead>
+          <table style="table-layout:fixed;width:100%;">
+            <thead><tr><th style="width:28px;"></th><th style="width:auto;">Блок / Задача / Услуга</th><th style="width:52px;">Кол-во</th><th style="width:52px;">Часы</th><th style="width:200px;">Раскладка по ролям, %</th></tr></thead>
             <tbody id="newItemsBody"></tbody>
           </table>
         </div>
@@ -398,7 +399,12 @@ async function extract(){
     await loadCatalog(); // всегда берём каталог свежим прямо перед анализом
     status.innerHTML = '<span class="spinner"></span>\u0410\u043d\u0430\u043b\u0438\u0437\u0438\u0440\u0443\u044e \u0442\u0440\u0430\u043d\u0441\u043a\u0440\u0438\u043f\u0442...';
     const parsed = await callApps({ action: "chat", system: systemPrompt(), message: text });
-    if(parsed.error){ throw new Error(parsed.error + (parsed.details ? (' \u2014 ' + parsed.details) : '')); }
+    if(parsed.error){
+      let msg = parsed.error;
+      if(parsed.details) msg += ' \u2014 ' + parsed.details;
+      if(parsed.stop_reason) msg += ' [stop_reason=' + parsed.stop_reason + ', \u0434\u043b\u0438\u043d\u0430 \u043e\u0442\u0432\u0435\u0442\u0430 ' + (parsed.length||0) + ']';
+      throw new Error(msg);
+    }
     lastData = { matches: parsed.matches||[], new_items: parsed.new_items||[] };
     // Начинаем разбор заново — прошлые «только что записанные» позиции больше не актуальны:
     // те, что реально нужны, теперь придут как обычные совпадения с каталогом.
@@ -607,7 +613,7 @@ function renderResults(data){
         '<td>' +
           '<input class="txt-input" value="' + (item.block||'') + '" data-newblock="' + idx + '" placeholder="Block">' +
           '<input class="txt-input" value="' + (item.task||'') + '" data-newtask="' + idx + '" placeholder="Task">' +
-          '<input class="txt-input" value="' + (item.deliverable||'') + '" data-newdeliv="' + idx + '" placeholder="Deliverable">' +
+          '<textarea class="txt-input txt-input-multi" rows="2" data-newdeliv="' + idx + '" placeholder="Deliverable">' + (item.deliverable||'') + '</textarea>' +
           '<span class="reason">оценено по: ' + (item.based_on||'') + ' — ' + (item.reason||'') + '</span>' +
         '</td>' +
         '<td><input class="qty-input" type="number" min="1" value="1" data-newqty="' + idx + '"></td>' +
